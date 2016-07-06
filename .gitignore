@@ -1,6 +1,0 @@
-**/target/
-**/.idea/
-*.log
-*.iml
-*/workspace.xml
-.gitignore
