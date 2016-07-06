@@ -92,7 +92,7 @@ public class ChatMain {
             System.out.println("### 컨넥션 에러코드:"+me.getReasonCode());
             System.exit(-1);
         } catch (Exception e) {
-            System.out.println("#### 에러:"+e.getMessage());
+            System.out.println("### 에러:"+e.getMessage());
             System.exit(-1);
         }
         return true;
