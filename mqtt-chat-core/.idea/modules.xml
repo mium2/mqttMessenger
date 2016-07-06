@@ -2,8 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/mium2-push-core.iml" filepath="$PROJECT_DIR$/mium2-push-core.iml" />
+      <module fileurl="file://$PROJECT_DIR$/mqtt-chat-core.iml" filepath="$PROJECT_DIR$/mqtt-chat-core.iml" />
     </modules>
   </component>
 </project>
-

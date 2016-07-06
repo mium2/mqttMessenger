@@ -22,8 +22,8 @@ public class ChatMain {
     private MqttClient mqttClient = null;
 
     public static void main(String[] args) {
-        System.out.println("=====================================================================");
-        System.out.println("=========== Morpheus DBCP Encryption Tool ===================");
+
+        System.out.println("================== Morpheus DBCP Encryption Tool =====================");
         System.out.println("STEP 1: 접속할 메신지서버 아이피를 입력하세요.");
         System.out.println("STEP 2: 접속할 메신지 서버 포트를 입력하세요.");
         System.out.println("STEP 3: 접속할 USERID를 입력하세요.");
