@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:mvc="http://www.springframework.org/schema/mvc" xmlns:cache="http://www.springframework.org/schema/cache"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd http://www.springframework.org/schema/mvc http://www.springframework.org/schema/mvc/spring-mvc.xsd http://www.springframework.org/schema/cache http://www.springframework.org/schema/cache/spring-cache.xsd">
+
+    <mvc:annotation-driven />
+    <context:component-scan base-package="com.msp.messenger"/>
+
+    <bean id="propertyConfigurer" class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
+        <property name="properties" ref="myProperties" />
+    </bean>
+
+    <!--  cache -->
+    <cache:annotation-driven />
+    <context:component-scan base-package="com.msp.messenger"/>
+    <bean id="cacheManager" class="org.springframework.cache.ehcache.EhCacheCacheManager">
+        <property name="cacheManager" ref="ehcache" />
+    </bean>
+
+    <bean id="ehcache" class="org.springframework.cache.ehcache.EhCacheManagerFactoryBean">
+        <property name="configLocation" value="/WEB-INF/ehcache.xml" />
+    </bean>
+
+    <!-- interceptors  -->
+    <mvc:interceptors>
+        <mvc:interceptor>
+            <mvc:mapping path="/*.ctl"/>
+            <mvc:exclude-mapping path="/checkUserAndRegist.ctl"/>
+            <mvc:exclude-mapping path="/mobile/auth.ctl"/>
+            <bean class="com.msp.messenger.common.interceptor.CheckHandlerInterceptor"/>
+        </mvc:interceptor>
+    </mvc:interceptors>
+
+    <bean id="beanNameViewResolver" class="org.springframework.web.servlet.view.BeanNameViewResolver">
+        <property name="order" value="0"/>
+    </bean>
+    <!--파일업로드를 위한 리졸브 이렇게 선언하면 controller에서 MultipartHttpServletRequest 로 받아서 사용하면 됨-->
+    <bean id="multipartResolver"
+          class="org.springframework.web.multipart.commons.CommonsMultipartResolver">
+        <property name="maxUploadSize" value="2000000000"/>
+        <property name="defaultEncoding" value="UTF-8"/>
+    </bean>
+
+</beans>

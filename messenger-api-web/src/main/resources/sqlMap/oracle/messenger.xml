@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="query">
+    <insert id="inUser" parameterType="com.msp.messenger.bean.UserInfoBean">
+        <![CDATA[
+        insert into T_MSNG_USERINFO(APPID,USERID,HP_NUM,DEVICEID,NICKNAME,BROKER_ID,ORG_BROKER_ID,PUSH_TOKEN,PUSH_SERVER,REGDATE,MODDATE)
+        values(#{APPID},#{USERID},#{HP_NUM},#{DEVICEID},#{NICKNAME},#{BROKER_ID},#{ORG_BROKER_ID},#{PUSH_TOKEN},#{PUSH_SERVER},SYSDATE,SYSDATE)
+        ]]>
+    </insert>
+
+    <update id="upUser" parameterType="com.msp.messenger.bean.UserInfoBean">
+        <![CDATA[
+        update T_MSNG_USERINFO
+        set HP_NUM=#{HP_NUM},DEVICEID=#{DEVICEID},NICKNAME=#{NICKNAME},BROKER_ID=#{BROKER_ID},ORG_BROKER_ID=#{ORG_BROKER_ID},PUSH_TOKEN=#{PUSH_TOKEN},PUSH_SERVER=#{PUSH_SERVER},MODDATE=SYSDATE
+        where APPID=#{APPID} and USERID=#{USERID}
+        ]]>
+    </update>
+
+    <update id="delUser" parameterType="com.msp.messenger.bean.UserInfoBean">
+        <![CDATA[
+        delete from T_MSNG_USERINFO where APPID=#{APPID} and USERID=#{USERID}
+        ]]>
+    </update>
+
+    <select id="getServerInfo" parameterType="hashmap" resultType="com.msp.messenger.bean.ServerInfoBean">
+        <![CDATA[
+        SELECT * from T_MSNG_SERVER_INFO where ISACTIVE='Y' order by SERVERID ASC
+        ]]>
+    </select>
+
+</mapper>

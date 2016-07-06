@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration scan="true" scanPeriod="60 seconds">
+
+    <appender name="SENTAPPENDER" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <prudent>true</prudent>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <!--매우중요! 아래의 디렉토리에 시스템 발송이 아닌 일반 발송이력 저장됨-->
+            <fileNamePattern>/Users/mium2/project/java/MqttMessenger/messenger-api-web/data/logs/sent/sent.%d{yyyy-MM-dd}.csv</fileNamePattern>
+            <maxHistory>12</maxHistory>
+        </rollingPolicy>
+        <encoder>
+            <pattern>"%d{yyyy-MM-dd HH:mm:ss}",%msg%n</pattern>
+        </encoder>
+    </appender>
+    <appender name="SYSSENTAPPENDER" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <prudent>true</prudent>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <!--매우중요! 아래의 디렉토리에 시스템 발송이력 저장됨-->
+            <fileNamePattern>/Users/mium2/project/java/MqttMessenger/messenger-api-web/data/logs/sent/sys/sent.%d{yyyy-MM-dd}.csv</fileNamePattern>
+            <maxHistory>12</maxHistory>
+        </rollingPolicy>
+        <encoder>
+            <pattern>"%d{yyyy-MM-dd HH:mm:ss}",%msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <layout class="ch.qos.logback.classic.PatternLayout">
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %class - %msg%n</pattern>
+        </layout>
+    </appender>
+
+    <logger name="com.msp.messenger">
+        <level value="DEBUG"/>
+        <appender-ref ref="STDOUT" />
+    </logger>
+
+    <logger name="query">
+        <level value="DEBUG"/>
+        <appender-ref ref="STDOUT" />
+    </logger>
+
+    <!--<root level="DEBUG">-->
+        <!--<appender-ref ref="STDOUT" />-->
+    <!--</root>-->
+</configuration>
+        

@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <appID>com.uracle.push.test</appID>
+    <!-- 매우 중요. RDB에 저장한 서버아이디값과 일치해야함-->
+    <server_id>BROKER_1</server_id>
+    <!-- 메신저서버 정보로드 하기 위해 -->
+    <web-api-server-url>http://localhost:18080/</web-api-server-url>
+    <!-- listen 포트 -->
+    <port>1883</port>
+    <ssl_port>8443</ssl_port>
+    <locale>kr_K</locale>
+    <!-- 전송 정보 수신 포트 -->
+    <cache_port>18883</cache_port>
+
+    <monitor_port>18880</monitor_port>
+
+    <!-- Subscribe Store 설정 : ehcache, redis, memory, sqlite 중 선택 -->
+    <offmsgtore_kind>redis</offmsgtore_kind>
+
+    <!-- 푸시서버 패스워드 체크 설정파일-->
+    <password_file>/Users/mium2/project/mium-push-all-proj/mium2-push-server/config/password_file.conf</password_file>
+
+    <!--메모리 디비 파일경로-->
+    <sqlite_scr>/Users/mium2/project/mium-push-all-proj/mium2-push-server/push-broker.db</sqlite_scr>
+
+    <!-- 발송 정보 캐쉬 공유 재전송 주기 10000ms : 10초-->
+    <cache_replication_retry_interval>10000</cache_replication_retry_interval>
+
+    <!-- 메시지 처리 쓰레드 카운트-->
+    <protocol_thread_count>5</protocol_thread_count>
+
+    <!-- Message 큐 사이즈 -->
+    <max_message_queue_size>200000</max_message_queue_size>
+
+    <!-- 메시지 사이즈 제한 (byte) MaxSize 268435455 bytes, 기본값 : 제한 없음 -->
+    <message_size_limit>0</message_size_limit>
+
+    <!-- offline 메시지 전송 주기(초) 기본값  : 0 사용 안함 -->
+    <resend_interval>0</resend_interval>
+
+    <!-- 메시지 큐 사이즈 제한 기본값 : 0  사용안함 -->
+    <queue_size>0</queue_size>
+
+    <!-- 사용자당 메시지 보관 갯수 -->
+    <cache_user_msg_count>10</cache_user_msg_count>
+
+    <!-- 오프라인 만료 체크 주기 분(minute)-->
+    <offmsg_check_minute_interval>60</offmsg_check_minute_interval>
+
+    <!-- 오프메세지 만료시간 초-->
+    <offmsg_expire_second>86400</offmsg_expire_second>
+
+    <thumbnail.width>100</thumbnail.width>
+    <thumbnail.height>100</thumbnail.height>
+</configuration>

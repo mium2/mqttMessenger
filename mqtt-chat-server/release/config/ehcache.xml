@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ehcache>
+	<diskStore path="/Users/mium2/project/java/MqttChat/mqtt-chat-server/cache" />
+<!--
+    <cacheManagerPeerProviderFactory
+        class="net.sf.ehcache.distribution.RMICacheManagerPeerProviderFactory"
+        properties="peerDiscovery=manual,
+            rmiUrls=//211.241.199.217:40000/offmessage|//211.241.199.139:40000/offmessage" />
+
+    <cacheManagerPeerListenerFactory
+        class="net.sf.ehcache.distribution.RMICacheManagerPeerListenerFactory"
+        properties="port=40000, socketTimeoutMillis=3000" />
+-->
+
+    <defaultCache
+            maxElementsInMemory="1000000"
+            eternal="false"
+            timeToIdleSeconds="0"
+            timeToLiveSeconds="10"
+            overflowToDisk="true"
+            maxElementsOnDisk="10000000"
+            diskPersistent="false"
+            diskExpiryThreadIntervalSeconds="120"
+            memoryStoreEvictionPolicy="LRU"
+            />
+
+    <cache name="qos2Store"
+           maxEntriesLocalHeap="1000000"
+           eternal="false"
+           overflowToDisk="false"
+           diskPersistent="false"
+           timeToIdleSeconds="0"
+           timeToLiveSeconds="10"
+           diskExpiryThreadIntervalSeconds="3"
+           memoryStoreEvictionPolicy="FIFO">
+    </cache>
+
+	<cache name="publishStore"
+	    maxEntriesLocalHeap="1000000"
+			eternal="false"
+			overflowToDisk="false"
+			diskPersistent="false"
+			timeToIdleSeconds="0"
+			timeToLiveSeconds="30"
+			memoryStoreEvictionPolicy="FIFO"/>
+
+    <!-- timeToIdleSeconds 해당키 조회가 지정된 시간안에 조회가 한번도 없을 경우 삭제 이벤트 발생. timeToLiveSeconds 설정시간 동안만 보관 조회와 상관없음-->
+    <cache name="offlinestore"
+           maxEntriesLocalHeap="1000000"
+           eternal="false"
+           overflowToDisk="false"
+           diskPersistent="false"
+           timeToIdleSeconds="0"
+           timeToLiveSeconds="86400"
+           memoryStoreEvictionPolicy="FIFO"/>
+<!--
+    <cacheEventListenerFactory class="net.sf.ehcache.distribution.RMICacheReplicatorFactory"
+    properties="replicateAsynchronously=true, replicatePuts=true, replicateUpdates=true,replicateUpdatesViaCopy=false, replicateRemovals=true "/>
+-->
+</ehcache>

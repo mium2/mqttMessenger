@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- PUSH receiver sqlMap_ORACLE -->
+<mapper namespace="retry">
+	 <!-- 페이징 처리 쿼리 부분 시작 __test -->
+    <sql id="head">
+        SELECT *
+        FROM ( SELECT
+        ROWNUM RNUM
+        ,COUNT(*) OVER() TOT_CNT
+        ,A.*
+        FROM (SELECT * FROM (
+    </sql>
+
+    <sql id="bottom">
+        )
+        ) A
+        )
+        WHERE RNUM BETWEEN (#{PAGE_NUM} -1) * #{PAGE_SIZE} + 1 AND #{PAGE_NUM} * #{PAGE_SIZE}
+    </sql>
+	
+    <delete id="delFailMsg" parameterType="hashmap" >
+        delete from T_PUSH_FAIL where SEQNO=#{SEQNO} AND PSID=#{PSID}
+    </delete>
+
+    <select id="selRetryConFailMsgListBack" resultType="kr.msp.push.receiver.daemon.model.FailMsgBean">
+        select F.*, U.PUSHKEY, U.USERSEQNO, U.CNAME
+        from T_PUSH_FAIL F, T_PUSH_USER_INFO U
+        where F.SEQNO=#{SEQNO} AND F.RESULTCODE='9000' AND F.PSID=U.PSID
+    </select>
+
+    <select id="selRetryConFailMsgList" resultType="kr.msp.push.receiver.daemon.model.PushUserBean">
+        select PSID, PNSID, CUID, CSV_VARS from T_PUSH_FAIL  where SEQNO=#{SEQNO} AND RESULTCODE='9000'
+    </select>
+
+    <select id="selRetryNotRecvMsgList" resultType="kr.msp.push.receiver.daemon.model.PushUserBean">
+        <![CDATA[
+        select PSID, PNSID, CUID, CSV_VARS from T_PUSH_SUCCESS where SEQNO=#{SEQNO} AND STATUS < 2
+	]]>
+    </select>
+
+    <select id="selRetryNotReadMsgList" resultType="kr.msp.push.receiver.daemon.model.PushUserBean">
+        <![CDATA[
+        select PSID, PNSID, CUID, CSV_VARS from T_PUSH_SUCCESS where SEQNO=#{SEQNO} AND STATUS < 3
+	]]>
+    </select>
+
+    <select id="selRetryConFailMsgListOLD" resultType="kr.msp.push.receiver.daemon.model.PushUserBean">
+        select U.USERSEQNO,  U.PUSHKEY, F.PSID, F.PNSID, U.DEVICEID, F.CUID, U.CNAME, U.PHONENO, F.CSV_VARS
+        from T_PUSH_FAIL F, T_PUSH_USER_INFO U
+        where F.SEQNO=#{SEQNO} AND F.RESULTCODE='9000' AND F.PSID=U.PSID
+    </select>
+
+    <select id="selRetryNotRecvMsgListOLD" resultType="kr.msp.push.receiver.daemon.model.PushUserBean">
+        <![CDATA[
+        select U.USERSEQNO,  U.PUSHKEY, S.PSID, S.PNSID, U.DEVICEID, S.CUID, U.CNAME, U.PHONENO, S.CSV_VARS
+        	from T_PUSH_SUCCESS S, T_PUSH_USER_INFO U
+        	where S.SEQNO=#{SEQNO} AND S.PSID=U.PSID  AND S.STATUS < 2
+	]]>
+    </select>
+
+    <select id="selRetryNotReadMsgListOLD" resultType="kr.msp.push.receiver.daemon.model.PushUserBean">
+        <![CDATA[
+        select U.USERSEQNO,  U.PUSHKEY, S.PSID, S.PNSID, U.DEVICEID, S.CUID, U.CNAME, U.PHONENO, S.CSV_VARS
+        	from T_PUSH_SUCCESS S, T_PUSH_USER_INFO U
+        	where S.SEQNO=#{SEQNO} AND S.PSID=U.PSID  AND S.STATUS < 3
+	]]>
+    </select>
+
+
+    <select id="selRetryConFailMsgListAll" resultType="kr.msp.push.receiver.daemon.model.FailMsgBean">
+        select F.*, U.PUSHKEY, U.USERSEQNO, U.CNAME
+        from T_PUSH_FAIL F, T_PUSH_USER_INFO U
+        where F.RESULTCODE='9000' AND F.PSID=U.PSID
+    </select>
+
+    <select id="selMsgMaster" parameterType="java.lang.Long" resultType="kr.msp.push.receiver.model.PushMsgRecvMasterBean">
+        select * from T_PUSH_MSG_RECV_MASTER where SEQNO=#{SEQNO}
+    </select>
+    
+    <select id="selRetryConFailMsgCnt" parameterType="Long" resultType="Integer">
+    <![CDATA[
+      select count(*) as cnt from T_PUSH_FAIL  where SEQNO=#{SEQNO} AND RESULTCODE='9000'
+    ]]>
+    </select>
+
+    <select id="selRetryNotRecvMsgCnt" parameterType="Long" resultType="Integer">
+    <![CDATA[
+      select count(*) as cnt from T_PUSH_SUCCESS where SEQNO=#{SEQNO} AND STATUS < 2
+	]]>
+    </select>
+
+    <select id="selRetryNotReadMsgCnt" parameterType="Long" resultType="Integer">
+    <![CDATA[
+      select count(*) as cnt from T_PUSH_SUCCESS where SEQNO=#{SEQNO} AND STATUS < 3
+	]]>
+    </select>
+
+    <select id="selRetryNotRecvMsgPageList" parameterType="hashmap" resultType="kr.msp.push.receiver.daemon.model.PushUserBean">
+        <include refid="head"/>
+        <![CDATA[
+        select PSID, PNSID, CUID, CSV_VARS from T_PUSH_SUCCESS where SEQNO=#{SEQNO} AND STATUS < 2
+        ]]>
+        <include refid="bottom"/>
+    </select>
+    
+    <select id="selRetryNotReadMsgPageList" parameterType="hashmap" resultType="kr.msp.push.receiver.daemon.model.PushUserBean">
+        <include refid="head"/>
+        <![CDATA[
+        select PSID, PNSID, CUID, CSV_VARS from T_PUSH_SUCCESS where SEQNO=#{SEQNO} AND STATUS < 3
+        ]]>
+        <include refid="bottom"/>
+    </select>
+</mapper>
