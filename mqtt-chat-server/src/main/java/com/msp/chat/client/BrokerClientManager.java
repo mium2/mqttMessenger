@@ -191,7 +191,7 @@ public class BrokerClientManager {
         if(channelFutureMap.containsKey(brokerid)) {
             Channel channel = channelFutureMap.get(brokerid).channel();
             if(logger.isTraceEnabled()){
-                logger.trace("###[BrokerClientManager sendSysMessage] channel isActive :"+channel.isActive());
+                logger.trace("###[BrokerClientManager sendSysMessage args3] channel isActive :"+channel.isActive());
             }
             if(channel.isActive()) {
                 PublishMessage pubMessage = new PublishMessage();
@@ -216,7 +216,7 @@ public class BrokerClientManager {
         if(channelFutureMap.containsKey(brokerid)) {
             Channel channel = channelFutureMap.get(brokerid).channel();
             if(logger.isTraceEnabled()){
-                logger.trace("###[BrokerClientManager sendSysMessage] channel isActive :"+channel.isActive());
+                logger.trace("###[BrokerClientManager sendSysMessage args2] channel isActive :"+channel.isActive());
             }
             if(channel.isActive()) {
                 channel.writeAndFlush(publishMessage);
