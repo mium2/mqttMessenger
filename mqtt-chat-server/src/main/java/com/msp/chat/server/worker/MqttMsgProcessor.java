@@ -111,14 +111,15 @@ public class MqttMsgProcessor {
             session.write(badProto);
             return;
         }
-
-        Object obj = redisStorageService.getUserAsignBrokerID(APPID, msg.getClientID());
-        if(obj==null || !obj.toString().equals(SERVER_ID)){
-            ConnAckMessage badProto = new ConnAckMessage();
-            badProto.setReturnCode(ConnAckMessage.NOT_AUTHORIZED);
-            LOGGER.error("###[MqttMsgProcessor processConnect] not registed clientID or Not allocated broker serverID.");
-            session.write(badProto);
-            return;
+        if(!msg.getClientID().startsWith(BrokerConfig.SYSTEM_BROKER_CLIENT_PRIFIX)) {
+            Object obj = redisStorageService.getUserAsignBrokerID(APPID, msg.getClientID());
+            if (obj == null || !obj.toString().equals(SERVER_ID)) {
+                ConnAckMessage badProto = new ConnAckMessage();
+                badProto.setReturnCode(ConnAckMessage.NOT_AUTHORIZED);
+                LOGGER.error("###[MqttMsgProcessor processConnect] not registed clientID or Not allocated broker serverID.");
+                session.write(badProto);
+                return;
+            }
         }
 
         //접속 클라이언트 아이디 존재 여부

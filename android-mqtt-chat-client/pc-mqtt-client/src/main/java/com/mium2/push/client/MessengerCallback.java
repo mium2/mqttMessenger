@@ -2,6 +2,7 @@ package com.mium2.push.client;
 
 import com.mium2.push.client.commons.Constants;
 import kr.msp.upns.client.mqttv3.*;
+import kr.msp.upns.client.mqttv3.internal.MqttDeliveryTokenImpl;
 import kr.msp.upns.client.mqttv3.internal.wire.MqttPubAck;
 import kr.msp.upns.client.mqttv3.internal.wire.MqttPublish;
 import kr.msp.upns.client.mqttv3.internal.wire.MqttWireMessage;
@@ -120,13 +121,14 @@ public class MessengerCallback implements MqttCallback {
     @Override
     public void deliveryComplete(MqttDeliveryToken token) {
         //We do not need this because we do not publish
-//        try {
-//            MqttDeliveryTokenImpl mqttDeliveryToken = (MqttDeliveryTokenImpl)token;
-//            System.out.println("## PUBLISH ACK 도착:"+mqttDeliveryToken.getMessageId());
-//
-//        } catch (Exception e) {
-//            e.printStackTrace();
-//        }
+        try {
+            MqttDeliveryTokenImpl mqttDeliveryToken = (MqttDeliveryTokenImpl)token;
+            System.out.println("\r## PUBLISH ACK 도착:"+mqttDeliveryToken.getMessageId());
+            System.out.print("보낼 메세지:");
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     private int byteToInt(byte[] src){

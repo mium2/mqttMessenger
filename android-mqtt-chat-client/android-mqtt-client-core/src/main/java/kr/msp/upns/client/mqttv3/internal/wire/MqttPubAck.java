@@ -28,7 +28,6 @@ public class MqttPubAck extends MqttAck {
 		ByteArrayInputStream bais = new ByteArrayInputStream(data);
 		DataInputStream dis = new DataInputStream(bais);
 		msgId = dis.readUnsignedShort();
-        int subscribeCnt = dis.readUnsignedShort();
 		dis.close();
 	}
 	
