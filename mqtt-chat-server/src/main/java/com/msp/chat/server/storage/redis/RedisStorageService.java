@@ -160,6 +160,7 @@ public class RedisStorageService {
                 StringBuilder sb = new StringBuilder(BrokerConfig.SYS_MSG_SENT_COMPLETE);
                 sb.append(pubClientID+"|");
                 sb.append(messageID);
+
                 // 해당 클라이언트가 해당 브로커에 연결채널이 있으면 읽음확인 완료 카운트 0을보낸다.
                 byte[] payLoadMsgBytes = sb.toString().getBytes();
                 ByteBuffer payloadBuf = ByteBuffer.allocate(payLoadMsgBytes.length);

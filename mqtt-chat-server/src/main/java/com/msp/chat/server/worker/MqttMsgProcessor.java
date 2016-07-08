@@ -217,7 +217,7 @@ public class MqttMsgProcessor {
                 String pubClientID = SERVER_ID;
                 String subClientID = messageArr[0];
                 String sendMsg = messageArr[1];
-                sendMsg=BrokerConfig.SYS_MSG_PRIFIX+sendMsg;
+                sendMsg=BrokerConfig.SYS_MSG_SENT_COMPLETE+sendMsg;
                 byte[] sendMsgbytes = sendMsg.getBytes();
                 ByteBuffer sendMsgByteBuffer = ByteBuffer.allocate(sendMsgbytes.length);
                 sendMsgByteBuffer.put(sendMsgbytes);

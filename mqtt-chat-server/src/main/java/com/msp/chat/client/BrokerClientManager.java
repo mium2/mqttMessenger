@@ -9,6 +9,7 @@ import com.msp.chat.core.mqtt.proto.messages.PublishMessage;
 import com.msp.chat.server.bean.ServerInfoBean;
 import com.msp.chat.server.bean.events.ValueEvent;
 import com.msp.chat.server.commons.utill.BrokerConfig;
+import com.msp.chat.server.commons.utill.DebugUtils;
 import com.msp.chat.server.storage.BrokerConInfoStore;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.*;
@@ -219,6 +220,7 @@ public class BrokerClientManager {
                 logger.trace("###[BrokerClientManager sendSysMessage args2] channel isActive :"+channel.isActive());
             }
             if(channel.isActive()) {
+                System.out.println("#### sendSysMessage : "+ DebugUtils.payload2Str(publishMessage.getPayload()));
                 channel.writeAndFlush(publishMessage);
             }else {
                 throw new Exception("###[BrokerClientManager sendSysMessage] ERROR "+brokerid+" is Not Active!");
