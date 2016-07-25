@@ -38,7 +38,7 @@ public class NettySslMqttAcceptor implements ServerAcceptor {
         m_bossGroup = new NioEventLoopGroup(1);
         m_workerGroup = new NioEventLoopGroup();
 
-//        final NettySslMqttHandler sslHandler = new NettySslMqttHandler();
+        final NettyMQTTHandler handler = new NettyMQTTHandler();
 
         ServerBootstrap b = new ServerBootstrap();
         b.group(m_bossGroup, m_workerGroup)
@@ -54,6 +54,8 @@ public class NettySslMqttAcceptor implements ServerAcceptor {
                         pipeline.addLast("encoder", new MQTTEncoder());
                         pipeline.addLast("metrics", new MessageMetricsHandler(m_metricsCollector));
                         pipeline.addLast("handler", new NettySslMqttHandler());
+//                        pipeline.addLast("handler", handler);
+
                     }
                 });
         b.option(ChannelOption.SO_BACKLOG, 128);

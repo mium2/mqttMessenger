@@ -66,6 +66,8 @@ public class MessengerCallback implements MqttCallback {
             }else if(Arrays.equals(chkSysMsgBytes,Constants.SYS_RES_MSG_SENT_INFO.getBytes())){
 
             }else if(Arrays.equals(chkSysMsgBytes,Constants.SYS_RES_MSG_FILE.getBytes())){
+                /*
+                // NOTE : 썸네일을 바이너리로 보내려고 했으나.. 웹소켓 과 메세지 규격을 통일하기 위해 웹서버로 부터 가져오게 변경하여 아래를 주석처리함.
                 // 확장자 length 가져오기
                 byte[] fileExtentionLenBytes = new byte[4];
                 for(int i=0; i<4; i++){
@@ -109,6 +111,7 @@ public class MessengerCallback implements MqttCallback {
                 }
                 System.out.println("\r### [시스템 받은 메세지] : " +fileName);
                 return;
+                */
             }
 
         }

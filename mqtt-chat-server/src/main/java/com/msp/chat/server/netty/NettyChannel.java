@@ -78,5 +78,8 @@ public class NettyChannel implements ServerChannel {
     public void write(Object value) {
         m_channel.writeAndFlush(value);
     }
-    
+
+    public ChannelHandlerContext getChannelHandlerContext() {
+        return m_channel;
+    }
 }

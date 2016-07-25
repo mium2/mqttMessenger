@@ -24,7 +24,7 @@ public class RedisSubscribeStore implements ISubscribeStore {
     public String APPID = null;
     public final static String REDIS_SUBSCRIBE = "SUBSCRIBE";
     // 메신저에서 만든 대화방 키테이블
-    public final static String REDIS_ROOMID_SUBSCRUBE = ":ROOMID_SUBSCRIBE";
+    public final static String REDIS_ROOMID_SUBSCRUBE = "ROOMID_SUBSCRIBE";
 
     @Autowired(required = true)
     private RedisTemplate masterRedisTemplate;
@@ -97,7 +97,7 @@ public class RedisSubscribeStore implements ISubscribeStore {
         // MQTT서버를 통해 Subscribe를 한 경우
 //        Object obj = redisTemplate.opsForHash().get(REDIS_SUBSCRIBE, topic);
         // 메신저 API서버를 통해 대화방을 생성한 경우.
-        Object obj = slaveRedisTemplate.opsForHash().get(APPID+REDIS_ROOMID_SUBSCRUBE,topic);
+        Object obj = slaveRedisTemplate.opsForHash().get(REDIS_ROOMID_SUBSCRUBE,topic);
         if (obj != null) {
             String clientIdSetJsonString = obj.toString();
             cliendIdSet = gson.fromJson(clientIdSetJsonString, HashSet.class);

@@ -6,6 +6,7 @@ import com.msp.chat.core.mqtt.Constants;
 import com.msp.chat.server.Server;
 import com.msp.chat.server.bean.ConnectionDescriptor;
 import com.msp.chat.server.bean.Subscription;
+import com.msp.chat.server.bean.WebSocketMsgBean;
 import com.msp.chat.server.bean.events.*;
 import com.msp.chat.server.commons.utill.BrokerConfig;
 import com.msp.chat.server.commons.utill.DebugUtils;
@@ -17,6 +18,11 @@ import com.msp.chat.server.storage.redis.RedisStorageService;
 import com.msp.chat.server.storage.redis.RedisSubscribeStore;
 import com.msp.chat.server.storage.redis.bean.OffMsgBean;
 import com.msp.chat.server.storage.sqlite.SqliteSubscribeStore;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.handler.codec.http.websocketx.BinaryWebSocketFrame;
+import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 import net.sf.ehcache.Element;
 import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
@@ -48,6 +54,7 @@ public class MqttMsgProcessor {
     private final String APPID;
     private final String OFFMSG_STORAGE_KIND; // 0 : ehcache, 1 : reids
     private final String FILE_SAVE_ROOT_SRC;
+    private final String DOWNLOAD_HOSTURL;
     private final int THUMBNAIL_WIDTH;
     private final int THUMBNAIL_HEIGHT;
     private final String IMG_FOLDER = "images";
@@ -60,6 +67,7 @@ public class MqttMsgProcessor {
         APPID = BrokerConfig.getProperty(BrokerConfig.APPID);
         OFFMSG_STORAGE_KIND = BrokerConfig.getProperty(BrokerConfig.OFFMSG_STORE_KIND);
         FILE_SAVE_ROOT_SRC = BrokerConfig.getProperty(BrokerConfig.FILE_SAVE_SRC);
+        DOWNLOAD_HOSTURL = BrokerConfig.getProperty(BrokerConfig.DOWNLOAD_HOSTURL);
         THUMBNAIL_WIDTH = BrokerConfig.getIntProperty(BrokerConfig.THUMBNAIL_WIDTH);
         THUMBNAIL_HEIGHT = BrokerConfig.getIntProperty(BrokerConfig.THUMBNAIL_HEIGHT);
         CHKIMGSET = new HashSet<String>();
@@ -112,7 +120,7 @@ public class MqttMsgProcessor {
             return;
         }
         if(!msg.getClientID().startsWith(BrokerConfig.SYSTEM_BROKER_CLIENT_PRIFIX)) {
-            Object obj = redisStorageService.getUserAsignBrokerID(APPID, msg.getClientID());
+            Object obj = redisStorageService.getUserAsignBrokerID(msg.getClientID());
             if (obj == null || !obj.toString().equals(SERVER_ID)) {
                 ConnAckMessage badProto = new ConnAckMessage();
                 badProto.setReturnCode(ConnAckMessage.NOT_AUTHORIZED);
@@ -204,25 +212,53 @@ public class MqttMsgProcessor {
         final AbstractMessage.QOSType qos = evt.getQos();
         final ByteBuffer message = evt.getMessage();
         boolean retain = evt.isRetain(); //Offline일 경우 메세지 저장여부
+
+        //메세지가 시스템 메세지일경우 처리를 위해
         if(message.remaining()>10){
             byte[] chkSysMsgBytes = new byte[10];
             message.mark();
             message.get(chkSysMsgBytes);
             String chkSysMsg = new String(chkSysMsgBytes,"utf-8");
+            // 수신자로 부터 수신ACK가 들어올때마다 발송자에게 갱신된 미수신 카운트를 보낸다.
             if(chkSysMsg.equals(BrokerConfig.SYS_MSG_SENT_COMPLETE)){
                 byte[] revMsgBytes = new byte[message.remaining()];
                 message.get(revMsgBytes);
                 String revMsg = new String(revMsgBytes,"utf-8");
                 String[] messageArr = revMsg.split("\\|");
-                String pubClientID = SERVER_ID;
-                String subClientID = messageArr[0];
-                String sendMsg = messageArr[1];
-                sendMsg=BrokerConfig.SYS_MSG_SENT_COMPLETE+sendMsg;
+                String pubClientID = evt.getPubClientID(); //메세지 발행자와 수신자가 같은서버일 경우 pubClientID는 메세지 발행자아이디이고 다른 서버에서 위임으로 들어온 경우는 위임한 브로커 서버아이디이다.
+                String subClientID = messageArr[0]; //메세지 발행자 아이디. 따라서 이 사람에게 미수신정보 카운트를 보내야 한다.
+                // messageArr[1]=>roomid(토픽, messageArr[2]=>메세지아이디, messageArr[3]=>미수신카운트
+                String sendMsg = messageArr[1]+"|"+messageArr[2]+"|"+messageArr[3];
+                sendMsg=BrokerConfig.SYS_MSG_SENT_COMPLETE+"|"+sendMsg;
+                if(LOGGER.isTraceEnabled()){
+                    LOGGER.trace("## [MqttMsgProcessor processPublish] SYS_MSG_SENT_COMPLETE:"+sendMsg);
+                }
                 byte[] sendMsgbytes = sendMsg.getBytes();
                 ByteBuffer sendMsgByteBuffer = ByteBuffer.allocate(sendMsgbytes.length);
                 sendMsgByteBuffer.put(sendMsgbytes);
                 sendMsgByteBuffer.flip();
-                sendPublish(pubClientID, subClientID, topic, qos, sendMsgByteBuffer, retain, evt.getMessageID());
+
+                // Mqtt 클라이언트 푸시발송자에게 미수신정보 메세지를 보낸다.
+                if (ChannelQueue.getInstance().isContainsKey(subClientID)) {
+                    try {
+                        PublishMessage pubMessage = new PublishMessage();
+                        pubMessage.setRetainFlag(false);
+                        pubMessage.setTopicName(messageArr[1]);
+                        pubMessage.setQos(AbstractMessage.QOSType.MOST_ONE);
+                        pubMessage.setPayload(sendMsgByteBuffer.duplicate());
+                        pubMessage.setMessageID(Integer.parseInt(messageArr[2]));
+                        ServerChannel channel = ChannelQueue.getInstance().getChannel(subClientID).getSession();
+                        channel.write(pubMessage);
+                    }catch (Exception e){
+                        e.printStackTrace();
+                    }
+                }
+
+                //PC Websocket에서 접속되어 있는지 확인 후 전송.
+                ChannelHandlerContext channelHandlerContext=WebsocketClientIdCtxManager.getInstance().getChannel(pubClientID);
+                if(channelHandlerContext!=null){
+                    channelHandlerContext.writeAndFlush(new TextWebSocketFrame(sendMsg));
+                }
                 return;
             }else if(chkSysMsg.equals(BrokerConfig.SYS_REQ_MSG_SENT_INFO)){
                 //TODO : 클라이언트가 메세지아이디 배열을 보내면 해당 메세지가 발송상태 카운트를 보내준다.
@@ -237,10 +273,13 @@ public class MqttMsgProcessor {
                     int lastIndex = rev_fileName.lastIndexOf(".");
                     String fileExtention = rev_fileName.substring(lastIndex+1).toLowerCase();
                     String saveFileFullSrc;
+                    String downloadUrl;
                     if(CHKIMGSET.contains(fileExtention)){
                         saveFileFullSrc = FILE_SAVE_ROOT_SRC +"images/";
+                        downloadUrl = DOWNLOAD_HOSTURL+"images/";
                     }else{
                         saveFileFullSrc = FILE_SAVE_ROOT_SRC +"etc/";
+                        downloadUrl = DOWNLOAD_HOSTURL+"etc/";
                     }
                     rev_fileName = System.currentTimeMillis()+"."+fileExtention;
                     String orgFileFullSrc = saveFileFullSrc+rev_fileName;
@@ -273,25 +312,41 @@ public class MqttMsgProcessor {
                     //TODO : 시스템메세지 파일 전송일 경우 : 바로 리턴하지 않고 다른 클라이언트에 이미지일경우 썸네일이미지 말들고 다운받을 주소를 보낸다. 이미지가 아닐 경우는 확장자 정보와 다운받을 주소를 보낸다.
                     byte[] sysMsgKindBytes = BrokerConfig.SYS_RES_MSG_FILE.getBytes();
                     byte[] fileExtBytes = fileExtention.getBytes();
-                    byte[] imgDownSrcBytes= rev_fileName.getBytes();
+                    byte[] imgDownUrlBytes= (downloadUrl+rev_fileName).getBytes();
+                    byte[] messageidBytes = (evt.getMessageID()+"").getBytes();
 
-                    // sysMsgKindBytes.length + 확장자길이 + 확장자 + 다운로드URL주소길이 + 다운로드URL + 썸네일이미지;
-                    int allcateSize = sysMsgKindBytes.length + 4 + fileExtBytes.length + 4 + imgDownSrcBytes.length;
+                    byte[] publisherBytes = evt.getPubClientID().getBytes();
+                    // Command + | + 확장자 + | + 다운로드URL + | + 썸네일 URL;
+                    int allcateSize = sysMsgKindBytes.length + 1 + publisherBytes.length + 1 + messageidBytes.length + 1 + fileExtBytes.length + 1 + imgDownUrlBytes.length;
+                    // 고민  : Redis의 히스토리를 저장하여야 하기 때문 썸네일 이미지 보내는게 나은가? 결론 아니다. 썸네일 URL 주소로 변경처리
                     if(thumbFile!=null){
-                        allcateSize = allcateSize+(int)thumbFile.length();
+                        // +6한 이유는 썸네일 경로는 thumb/ 6바이트가 추가되기 때문
+                        allcateSize = allcateSize+1+6+imgDownUrlBytes.length;
                     }
                     ByteBuffer sysImgMsgByteBuffer = ByteBuffer.allocate(allcateSize);
                     sysImgMsgByteBuffer.put(sysMsgKindBytes);
-                    sysImgMsgByteBuffer.putInt(fileExtBytes.length);
+                    sysImgMsgByteBuffer.put("|".getBytes());
+                    sysImgMsgByteBuffer.put(publisherBytes);
+                    sysImgMsgByteBuffer.put("|".getBytes());
+                    sysImgMsgByteBuffer.put(messageidBytes);
+                    sysImgMsgByteBuffer.put("|".getBytes());
                     sysImgMsgByteBuffer.put(fileExtBytes);
-                    sysImgMsgByteBuffer.putInt(imgDownSrcBytes.length);
-                    sysImgMsgByteBuffer.put(imgDownSrcBytes);
+                    sysImgMsgByteBuffer.put("|".getBytes());
+                    sysImgMsgByteBuffer.put(imgDownUrlBytes);
+
                     if(thumbFile!=null){
-                        FileInputStream thumbFileInStream = new FileInputStream(thumbFile);
-                        FileChannel cin = thumbFileInStream.getChannel();
-                        cin.read(sysImgMsgByteBuffer);
-                        cin.close();
+                        byte[] thumbImgDownUrlBytes= (downloadUrl+"thumb/"+rev_fileName).getBytes();
+                        sysImgMsgByteBuffer.put("|".getBytes());
+                        sysImgMsgByteBuffer.put(thumbImgDownUrlBytes);
                     }
+
+                    // 아래는 썸네일을 바이트로 보낼때 하는 방법
+//                    if(thumbFile!=null){
+//                        FileInputStream thumbFileInStream = new FileInputStream(thumbFile);
+//                        FileChannel cin = thumbFileInStream.getChannel();
+//                        cin.read(sysImgMsgByteBuffer);
+//                        cin.close();
+//                    }
                     sysImgMsgByteBuffer.flip();
                     evt.setM_message(sysImgMsgByteBuffer);
 
@@ -409,7 +464,6 @@ public class MqttMsgProcessor {
     private void sendPublish(String pubClientID, String subClientID, String topic, AbstractMessage.QOSType qos, ByteBuffer message, boolean retained, int messageID) {
         //TODO: 파일 전송일 경우 처리 방안 구현
         // 예제로 아래는 클라이언트가 파일을 보냈을 경우 원본이미지,썸네일이미지 생성 후 서버에 저장함. 발송대상자에게는 썸네일 발송.
-
         PublishMessage pubMessage = new PublishMessage();
         pubMessage.setRetainFlag(retained);
         pubMessage.setTopicName(topic);
@@ -418,36 +472,63 @@ public class MqttMsgProcessor {
         pubMessage.setMessageID(messageID);
 
         if(LOGGER.isDebugEnabled()){
-            LOGGER.debug("###[MqttMsgProcessor sendPublish] send userID : {}, messageID : {}, qos : {}",subClientID,messageID,qos);
+            LOGGER.debug("###[MqttMsgProcessor sendPublish] send userID : {}, messageID : {}, qos : {}", subClientID, messageID,qos);
         }
-        // 해당아이디가 접속된 클라이언트 아이디에 존재 할 경우 발송
-        if (ChannelQueue.getInstance().isContainsKey(subClientID)) {
-            ServerChannel channel = ChannelQueue.getInstance().getChannel(subClientID).getSession();
-            channel.write(pubMessage);
-            if(qos!= AbstractMessage.QOSType.MOST_ONE) {
-                // 발송한 메세지는 임시 발송정보 캐시에 등록한다(nio이기 때문 컨넥션맵에 있다고 해서 반드시 세션이 유지되고 있다고 볼수 없다.)
-                // 따라서 ack가 왔을 때에만 발송완료로 판단하여 삭제한다. 만약 삭제가 되지 않은 메세지는 offlineMessage에 담아 재접속시 재전송하기 위해
-                PublishEvent newPublishEvt = new PublishEvent(topic, qos, message, retained, pubClientID, subClientID, messageID, channel);
-                //Broker=>client로 발송은 수신자아이디를 넣어야 함.
-                CachePublishStore.getInstance().put(subClientID, messageID, newPublishEvt);
+        // PC에서 WEBSOCKET에서 접속되어 있다면 PC에만 발송한다. 앱은 지난 메세지보기 요청을 통해 받는다.
+        ChannelHandlerContext webSocketCtx = WebsocketClientIdCtxManager.getInstance().getChannel(subClientID);
+        if(webSocketCtx!=null){
+            try {
+                message.mark();
+                byte[] chkCommandMsgBytes = null;
+                if(message.remaining()>10){
+                    chkCommandMsgBytes = new byte[10];
+                    message.get(chkCommandMsgBytes);
+                }
+                message.reset();
+                if(Arrays.equals(chkCommandMsgBytes, BrokerConfig.SYS_RES_MSG_FILE.getBytes())){
+                    String fileSendMsg = DebugUtils.payload2Str(message);
+                    if(LOGGER.isDebugEnabled()){
+                        LOGGER.debug("## [MqttMsgProcessor sendPublish] File Message : {}",fileSendMsg);
+                    }
+                    webSocketCtx.writeAndFlush(new TextWebSocketFrame(fileSendMsg));
+                }else {
+                    webSocketCtx.writeAndFlush(new TextWebSocketFrame("PUBLISH|" + pubClientID + "|" + messageID + "|" + topic + "|" + DebugUtils.payload2Str(message)));
+                }
+            } catch (Exception e) {
+                PublishEvent newPublishEvt = new PublishEvent(topic, qos, message, retained, pubClientID, subClientID, messageID, null);
+                CacheOfflineMsgStore.getInstance().put(subClientID, newPublishEvt);
+                LOGGER.error(e.getMessage());
             }
-            if (LOGGER.isDebugEnabled()) {
-                LOGGER.debug("###[MqttMsgProcessor sendPublish] MSG SEND to Subscriber CLIENTID:{}, TOPIC:{}, MSGID:{}, MSG:{} ", subClientID, topic, messageID, DebugUtils.payload2Str(message));
+        }else {
+            // 해당아이디가 접속된 클라이언트 아이디에 존재 할 경우 발송
+            if (ChannelQueue.getInstance().isContainsKey(subClientID)) {
+                ServerChannel channel = ChannelQueue.getInstance().getChannel(subClientID).getSession();
+                channel.write(pubMessage);
+                if (qos != AbstractMessage.QOSType.MOST_ONE) {
+                    // 발송한 메세지는 임시 발송정보 캐시에 등록한다(nio이기 때문 컨넥션맵에 있다고 해서 반드시 세션이 유지되고 있다고 볼수 없다.)
+                    // 따라서 ack가 왔을 때에만 발송완료로 판단하여 삭제한다. 만약 삭제가 되지 않은 메세지는 offlineMessage에 담아 재접속시 재전송하기 위해
+                    PublishEvent newPublishEvt = new PublishEvent(topic, qos, message, retained, pubClientID, subClientID, messageID, channel);
+                    //Broker=>client로 발송은 수신자아이디를 넣어야 함.
+                    CachePublishStore.getInstance().put(subClientID, messageID, newPublishEvt);
+                }
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug("###[MqttMsgProcessor sendPublish] MSG SEND to Subscriber CLIENTID:{}, TOPIC:{}, MSGID:{}, MSG:{} ", subClientID, topic, messageID, DebugUtils.payload2Str(message));
+                }
+            } else {
+                //접속되어 있지 않았으므로 offlinemessage에 저장
+                PublishEvent newPublishEvt = new PublishEvent(topic, qos, message, retained, pubClientID, subClientID, messageID, null);
+                if (OFFMSG_STORAGE_KIND.equals("1")) {
+                    redisStorageService.putOffMsg(subClientID, newPublishEvt);
+                } else {
+                    CacheOfflineMsgStore.getInstance().put(subClientID, newPublishEvt);
+                }
+                //PUSH를 이용하여 메세지를 보내야 한다.
+                PushSendWork pushSendWork = new PushSendWork();
+                pushSendWork.setAPP_ID(APPID);
+                pushSendWork.setMESSAGE(DebugUtils.payload2Str(message));
+                pushSendWork.setCUID(subClientID);
+                PushSendManager.getInstance().putWork(pushSendWork);
             }
-        }else{
-            //접속되어 있지 않았으므로 offlinemessage에 저장
-            PublishEvent newPublishEvt = new PublishEvent(topic, qos, message, retained, pubClientID, subClientID, messageID, null);
-            if(OFFMSG_STORAGE_KIND.equals("1")) {
-                redisStorageService.putOffMsg(subClientID, newPublishEvt);
-            }else {
-                CacheOfflineMsgStore.getInstance().put(subClientID,newPublishEvt);
-            }
-            //PUSH를 이용하여 메세지를 보내야 한다.
-            PushSendWork pushSendWork = new PushSendWork();
-            pushSendWork.setAPP_ID(APPID);
-            pushSendWork.setMESSAGE(DebugUtils.payload2Str(message));
-            pushSendWork.setCUID(subClientID);
-            PushSendManager.getInstance().putWork(pushSendWork);
         }
     }
 
@@ -532,7 +613,11 @@ public class MqttMsgProcessor {
     }
 
 
-    //구독신청자가 브로커서버에 Ack전송. Qos 1 or 2일때  해당 메세지 전송 완료후 호출되는 ack를 통해 임시발송저장 메세지 삭제처리 하고 수신확인 정보 보낸다.
+    /**
+     *구독신청자가 브로커서버에 Ack전송. Qos 1 or 2일때  해당 메세지 전송 완료후 호출되는 ack를 통해 임시발송저장 메세지 삭제처리 하고 수신확인 정보 보낸다.
+     * @param subClientID : 메세지 발행자가 아닌 메세지를 받고 Ack를 보낸 아이디
+     * @param messageID
+     */
     protected void processPubAck(String subClientID, int messageID) {
         if(LOGGER_PUBACK.isDebugEnabled()) {
             LOGGER_PUBACK.debug("Client ID : {}, messageID : {}",subClientID,messageID);
@@ -561,12 +646,24 @@ public class MqttMsgProcessor {
             // 방안 1. ACK가 들어올때 마다 해당 pubClientID+messageID를 키로 ACK카운트를 빼고 0이 되었을시 발행자에 통지한다. 그 전에는 클라이요청시에 응답한다.
 
             if(pubClientID!=null) {
-                redisStorageService.upPubMsgAckCnt(APPID,pubClientID,messageID,SERVER_ID);
+                redisStorageService.upPubMsgAckCnt(pubClientID,messageID);
             }else{
                 if(LOGGER.isErrorEnabled()){
                     LOGGER.error("###[MqttMsgProcessor processPubAck] CachePublishStore not exist and offMessage Store not exist. subClientID :{} , messageID:{}",subClientID,messageID);
                 }
             }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    //웹소켓으로 부터 수신화인 ACK 처리는 임시저장에 넣어두지 않았기 때문에 redis에서만 삭제 처리
+    protected void processWebsocketPubAck(String pubClientID, int messageID) {
+        if(LOGGER_PUBACK.isDebugEnabled()) {
+            LOGGER_PUBACK.debug("publish Client ID : {}, messageID : {}",pubClientID,messageID);
+        }
+        try {
+            redisStorageService.upPubMsgAckCnt(pubClientID,messageID);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -743,9 +840,11 @@ public class MqttMsgProcessor {
 
     // ping이 해당 시간 동안 오지 않을 경우. 클라이언트가 체널 close()를 한 경우. 메세지를 발송할 때 클라이언트 채널이 연결되어 있지 않을때
     protected void proccessConnectionLost(String clientID) {
-        if (ChannelQueue.getInstance().removeChannel(clientID) != null) {
+        ConnectionDescriptor connectionDescriptor = ChannelQueue.getInstance().removeChannel(clientID);
+        if (connectionDescriptor != null) {
+            connectionDescriptor = null; // 메모리 young 영역에서 정리되게 하기위해
             if(LOGGER.isDebugEnabled()) {
-                LOGGER.debug("###[MqttMsgProcessor proccessConnectionLost] Lost connection with client <{}>", clientID);
+                LOGGER.debug("###[MqttMsgProcessor proccessConnectionLost] Lost connection with client <{}>, size:{}", clientID,ChannelQueue.getInstance().getSize());
             }
         }
     }
@@ -772,5 +871,9 @@ public class MqttMsgProcessor {
             retrunValue = true;
         }
         return retrunValue;
+    }
+
+    public void webSocketPublish2Subscribers(PublishEvent evt){
+        publish2Subscribers(evt);
     }
 }

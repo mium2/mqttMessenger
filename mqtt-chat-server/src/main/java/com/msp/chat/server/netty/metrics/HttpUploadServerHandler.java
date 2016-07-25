@@ -6,20 +6,7 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
-import io.netty.handler.codec.http.Cookie;
-import io.netty.handler.codec.http.CookieDecoder;
-import io.netty.handler.codec.http.DefaultFullHttpResponse;
-import io.netty.handler.codec.http.FullHttpResponse;
-import io.netty.handler.codec.http.HttpContent;
-import io.netty.handler.codec.http.HttpHeaders;
-import io.netty.handler.codec.http.HttpMethod;
-import io.netty.handler.codec.http.HttpObject;
-import io.netty.handler.codec.http.HttpRequest;
-import io.netty.handler.codec.http.HttpResponseStatus;
-import io.netty.handler.codec.http.HttpVersion;
-import io.netty.handler.codec.http.LastHttpContent;
-import io.netty.handler.codec.http.QueryStringDecoder;
-import io.netty.handler.codec.http.ServerCookieEncoder;
+import io.netty.handler.codec.http.*;
 import io.netty.handler.codec.http.multipart.Attribute;
 import io.netty.handler.codec.http.multipart.DefaultHttpDataFactory;
 import io.netty.handler.codec.http.multipart.DiskAttribute;
@@ -44,7 +31,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import static io.netty.buffer.Unpooled.*;
-import static io.netty.handler.codec.http.HttpHeaders.Names.*;
+import static io.netty.handler.codec.http.HttpHeaderNames.*;
 
 /**
  * Created by IntelliJ IDEA.
@@ -91,7 +78,7 @@ public class HttpUploadServerHandler extends SimpleChannelInboundHandler<HttpObj
         System.out.println("############### messageReceived call~~!");
         if (msg instanceof HttpRequest) {
             HttpRequest request = this.request = (HttpRequest) msg;
-            URI uri = new URI(request.getUri());
+            URI uri = new URI(request.uri());
             if (!uri.getPath().startsWith("/form")) {
                 // Write Menu
                 writeMenu(ctx);
@@ -101,31 +88,36 @@ public class HttpUploadServerHandler extends SimpleChannelInboundHandler<HttpObj
             responseContent.append("WELCOME TO THE WILD WILD WEB SERVER\r\n");
             responseContent.append("===================================\r\n");
 
-            responseContent.append("VERSION: " + request.getProtocolVersion().text() + "\r\n");
+            responseContent.append("VERSION: " + request.protocolVersion().text() + "\r\n");
 
-            responseContent.append("REQUEST_URI: " + request.getUri() + "\r\n\r\n");
+            responseContent.append("REQUEST_URI: " + request.uri() + "\r\n\r\n");
             responseContent.append("\r\n\r\n");
 
             // new getMethod
-            for (Entry<String, String> entry : request.headers()) {
-                responseContent.append("HEADER: " + entry.getKey() + '=' + entry.getValue() + "\r\n");
+            HttpHeaders headers = request.headers();
+            if (!headers.isEmpty()) {
+                for (Map.Entry<CharSequence, CharSequence> h: headers) {
+                    CharSequence key = h.getKey();
+                    CharSequence value = h.getValue();
+                    responseContent.append("HEADER: " + key + '=' + value + "\r\n");
+                }
             }
             responseContent.append("\r\n\r\n");
 
             // new getMethod
             Set<Cookie> cookies;
-            String value = request.headers().get(COOKIE);
+            String value = request.headers().getAndConvert(COOKIE);
             if (value == null) {
                 cookies = Collections.emptySet();
             } else {
-                cookies = CookieDecoder.decode(value);
+                cookies = ServerCookieDecoder.decode(value);
             }
             for (Cookie cookie : cookies) {
                 responseContent.append("COOKIE: " + cookie.toString() + "\r\n");
             }
             responseContent.append("\r\n\r\n");
 
-            QueryStringDecoder decoderQuery = new QueryStringDecoder(request.getUri());
+            QueryStringDecoder decoderQuery = new QueryStringDecoder(request.uri());
             Map<String, List<String>> uriAttributes = decoderQuery.parameters();
             for (Entry<String, List<String>> attr: uriAttributes.entrySet()) {
                 for (String attrVal: attr.getValue()) {
@@ -135,7 +127,7 @@ public class HttpUploadServerHandler extends SimpleChannelInboundHandler<HttpObj
             responseContent.append("\r\n\r\n");
 
             // if GET Method: should not try to create a HttpPostRequestDecoder
-            if (request.getMethod().equals(HttpMethod.GET)) {
+            if (request.method().equals(HttpMethod.GET)) {
                 // GET Method: should not try to create a HttpPostRequestDecoder
                 // So stop here
                 responseContent.append("\r\n\r\nEND OF GET CONTENT\r\n");
@@ -151,9 +143,8 @@ public class HttpUploadServerHandler extends SimpleChannelInboundHandler<HttpObj
                 ctx.channel().close();
                 return;
             }
-
-            readingChunks = HttpHeaders.isTransferEncodingChunked(request);
-            responseContent.append("Is Chunked: " + readingChunks + "\r\n");
+//            readingChunks = HttpHeaders.isTransferEncodingChunked(request);
+//            responseContent.append("Is Chunked: " + readingChunks + "\r\n");
             responseContent.append("IsMultipart: " + decoder.isMultipart() + "\r\n");
             if (readingChunks) {
                 // Chunk version
@@ -279,9 +270,9 @@ public class HttpUploadServerHandler extends SimpleChannelInboundHandler<HttpObj
         responseContent.setLength(0);
 
         // Decide whether to close the connection or not.
-        boolean close = request.headers().contains(CONNECTION, HttpHeaders.Values.CLOSE, true)
-                || request.getProtocolVersion().equals(HttpVersion.HTTP_1_0)
-                && !request.headers().contains(CONNECTION, HttpHeaders.Values.KEEP_ALIVE, true);
+        boolean close = request.headers().contains(CONNECTION, HttpHeaderValues.CLOSE, true)
+                || request.protocolVersion().equals(HttpVersion.HTTP_1_0)
+                && !request.headers().contains(CONNECTION, HttpHeaderValues.KEEP_ALIVE, true);
 
         // Build the response object.
         FullHttpResponse response = new DefaultFullHttpResponse(
@@ -291,15 +282,15 @@ public class HttpUploadServerHandler extends SimpleChannelInboundHandler<HttpObj
         if (!close) {
             // There's no need to add 'Content-Length' header
             // if this is the last response.
-            response.headers().set(CONTENT_LENGTH, buf.readableBytes());
+            response.headers().setInt(CONTENT_LENGTH, response.content().readableBytes());
         }
 
         Set<Cookie> cookies;
-        String value = request.headers().get(COOKIE);
+        String value = request.headers().getAndConvert(COOKIE);
         if (value == null) {
             cookies = Collections.emptySet();
         } else {
-            cookies = CookieDecoder.decode(value);
+            cookies = ServerCookieDecoder.decode(value);
         }
         if (!cookies.isEmpty()) {
             // Reset the cookies if necessary.
@@ -389,8 +380,8 @@ public class HttpUploadServerHandler extends SimpleChannelInboundHandler<HttpObj
         FullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK, buf);
         // Build the response object.
 
-        response.headers().set(CONTENT_TYPE, "text/html; charset=UTF-8");
-        response.headers().set(CONTENT_LENGTH, buf.readableBytes());
+        response.headers().set(CONTENT_TYPE, "text/plain");
+        response.headers().setInt(CONTENT_LENGTH, response.content().readableBytes());
         System.out.println("############## 발송완료 바로전");
         System.out.println("#####"+response.toString());
         // Write the response.

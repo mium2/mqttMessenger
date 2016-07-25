@@ -14,6 +14,7 @@ public class PubMsgBean {
     private String pubClientID;
     private String msgID;
     private String subscriberCnt= "0";
+    private String sendate="0";
 
     public String getTopic() {
         return topic;
@@ -79,6 +80,14 @@ public class PubMsgBean {
         this.subscriberCnt = subscriberCnt;
     }
 
+    public String getSendate() {
+        return sendate;
+    }
+
+    public void setSendate(String sendate) {
+        this.sendate = sendate;
+    }
+
     @Override
     public String toString() {
         return "{" +
@@ -90,6 +99,7 @@ public class PubMsgBean {
             ", \"subClientID\":\"" + subClientID + "\"" +
             ", \"pubClientID\":\"" + pubClientID + "\"" +
             ", \"subscriberCnt\":\"" + subscriberCnt + "\"" +
+            ", \"sendate\":\"" + sendate + "\"" +
             "}";
     }
 }

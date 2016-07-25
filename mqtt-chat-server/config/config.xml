@@ -54,8 +54,12 @@
     <!-- 오프메세지 만료시간 초-->
     <offmsg_expire_second>86400</offmsg_expire_second>
 
+    <!--채팅방별 메세지 히스토리 저장갯수 설정-->
+    <room_msg_max_save_cnt>100</room_msg_max_save_cnt>
 
-    <file_save_src>/Users/mium2/project/java/MqttMessenger/temp_file/</file_save_src>
+    <!-- 아래의 파일저장 디렉토리는 웹서버 루트디렉토리 안이어야 합니다.-->
+    <file_save_src>/Users/mium2/project/git_repository/mqttMessenger/messenger-api-web/target/messenger-api-web-1.0.0/download_file/</file_save_src>
+    <download_hosturl>http://localhost:18080/download_file/</download_hosturl>
     <thumbnail_width>100</thumbnail_width>
     <thumbnail_height>100</thumbnail_height>
 </configuration>

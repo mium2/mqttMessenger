@@ -50,7 +50,10 @@ public class BrokerConfig {
     public static String ONEUSERMULTIDEVICE = "oneUserMultiDevice";
     public static String DBSTORAGEUSE_YN="dbStorageUseYN";
 
+    public static String ROOM_MSG_MAX_SAVE_CNT="room_msg_max_save_cnt";
+
     public static String FILE_SAVE_SRC="file_save_src";
+    public static String DOWNLOAD_HOSTURL="download_hosturl";
     public static String THUMBNAIL_WIDTH="thumbnail_width";
     public static String THUMBNAIL_HEIGHT="thumbnail_height";
 
@@ -89,7 +92,10 @@ public class BrokerConfig {
         properties.put(ONEUSERMULTIDEVICE, xml.getString(ONEUSERMULTIDEVICE,"Y"));
         properties.put(DBSTORAGEUSE_YN, xml.getString(DBSTORAGEUSE_YN,"N"));
 
+        properties.put(ROOM_MSG_MAX_SAVE_CNT, xml.getString(ROOM_MSG_MAX_SAVE_CNT,"100"));
+
         properties.put(FILE_SAVE_SRC, xml.getString(FILE_SAVE_SRC,""));
+        properties.put(DOWNLOAD_HOSTURL, xml.getString(DOWNLOAD_HOSTURL,""));
         properties.put(THUMBNAIL_WIDTH, xml.getString(THUMBNAIL_WIDTH,"100"));
         properties.put(THUMBNAIL_HEIGHT, xml.getString(THUMBNAIL_HEIGHT,"80"));
     }

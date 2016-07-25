@@ -80,8 +80,8 @@ public final class Client {
     public Client(String host, int port) {
         m_hostname = host;
         m_port = port;
-        init();
-//        sslInit();
+//        init();
+        sslInit();
     }
     
     /**
@@ -156,6 +156,7 @@ public final class Client {
         } else if (!channelFuture.isSuccess()) { // 실패
             throw new InterruptedException(channelFuture.cause().toString());
         } else { //Connection 성공
+            System.out.println("###### 접속성공 ");
             // Connection established successfully
             channel = channelFuture.sync().channel();
             m_connectBarrier = new CountDownLatch(1);

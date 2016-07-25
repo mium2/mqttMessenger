@@ -15,8 +15,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.*;
 
-import static io.netty.handler.codec.http.HttpHeaders.Names.*;
-import static io.netty.handler.codec.http.HttpHeaders.*;
+import static io.netty.handler.codec.http.HttpHeaderNames.*;
 import static io.netty.handler.codec.http.HttpResponseStatus.*;
 import static io.netty.handler.codec.http.HttpVersion.*;
 /**
@@ -41,7 +40,7 @@ public class NettyHttpHandler extends ChannelHandlerAdapter {
         if (msg instanceof HttpRequest) {
             request = (HttpRequest) msg;
 
-            QueryStringDecoder decoderQuery = new QueryStringDecoder(request.getUri());
+            QueryStringDecoder decoderQuery = new QueryStringDecoder(request.uri());
             Map<String, List<String>> uriAttributes = decoderQuery.parameters();
             for (Map.Entry<String, List<String>> attr: uriAttributes.entrySet()) {
                 for (String attrVal: attr.getValue()) {
@@ -49,7 +48,7 @@ public class NettyHttpHandler extends ChannelHandlerAdapter {
                 }
             }
             decoder = new HttpPostRequestDecoder(factory, request);
-            if (is100ContinueExpected(request)) {
+            if (HttpHeaderUtil.is100ContinueExpected(request)) {
                 ctx.write(new DefaultFullHttpResponse(HTTP_1_1, CONTINUE));
             }
         }
@@ -97,11 +96,11 @@ public class NettyHttpHandler extends ChannelHandlerAdapter {
         rootJsonObj.addProperty("resultMsg","요청하신 URI는 존재 하지 않습니다. 다시 확인 해 주세요~!");
         JsonObject revJsonObj = null;
         try {
-            if(request!=null && request.getUri().equals("/connectCnt")){
+            if(request!=null && request.uri().equals("/connectCnt")){
                 revJsonObj = pushHttpController.getConnectCnt(reqMap);
-            }else if(request.getUri()!=null && request.getUri().equals("/subscriptionCnt")){
+            }else if(request.uri()!=null && request.uri().equals("/subscriptionCnt")){
                 revJsonObj = pushHttpController.getSubscriptionCnt(reqMap);
-            }else if(request.getUri()!=null && request.getUri().equals("/groupUser")){
+            }else if(request.uri()!=null && request.uri().equals("/groupUser")){
 //                revJsonObj = pushHttpController.getGroupUserList(reqMap);
             }
 
@@ -120,28 +119,32 @@ public class NettyHttpHandler extends ChannelHandlerAdapter {
 
         FullHttpResponse response = new DefaultFullHttpResponse(HTTP_1_1, OK, Unpooled.wrappedBuffer(resJsonBytes));
         // new getMethod
-        for (Map.Entry<String, String> entry : request.headers()) {
-            response.headers().set(entry.getKey(),entry.getValue());
+        HttpHeaders headers = request.headers();
+        if (!headers.isEmpty()) {
+            for (Map.Entry<CharSequence, CharSequence> h: headers) {
+                CharSequence key = h.getKey();
+                CharSequence value = h.getValue();
+                response.headers().set(key, value);
+            }
         }
         // new getMethod
         Set<Cookie> cookies;
-        String value = request.headers().get(COOKIE);
+        String value = request.headers().getAndConvert(COOKIE);
         if (value == null) {
             cookies = Collections.emptySet();
         } else {
-            cookies = CookieDecoder.decode(value);
-        }
-        for (Cookie cookie : cookies) {
-            response.headers().set("COOKIE: ",cookie.toString());
+            cookies = ServerCookieDecoder.decode(value);
         }
         response.headers().set(CONTENT_TYPE, "text/plain");
-        response.headers().set(CONTENT_LENGTH, response.content().readableBytes());
+        response.headers().setInt(CONTENT_LENGTH, response.content().readableBytes());
 
-        boolean keepAlive = isKeepAlive(request);
+        boolean keepAlive = HttpHeaderUtil.isKeepAlive(request);
+
+
         if (!keepAlive) {
             ctx.write(response).addListener(ChannelFutureListener.CLOSE);
         } else {
-            response.headers().set(CONNECTION, Values.KEEP_ALIVE);
+            response.headers().set(CONNECTION, HttpHeaderValues.KEEP_ALIVE);
             ctx.write(response);
         }
 

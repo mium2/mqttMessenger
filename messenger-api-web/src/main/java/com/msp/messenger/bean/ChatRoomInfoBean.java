@@ -14,6 +14,7 @@ public class ChatRoomInfoBean {
     private String ROOM_NAME = "";
     private List<Object> USERIDS;
     private List<Object> HPNUMS;
+    private String CREATED_DATE = "";
 
     public String getAPPID() {
         return APPID;
@@ -61,5 +62,13 @@ public class ChatRoomInfoBean {
 
     public void setHPNUMS(List<Object> HPNUMS) {
         this.HPNUMS = HPNUMS;
+    }
+
+    public String getCREATED_DATE() {
+        return CREATED_DATE;
+    }
+
+    public void setCREATED_DATE(String CREATED_DATE) {
+        this.CREATED_DATE = CREATED_DATE;
     }
 }

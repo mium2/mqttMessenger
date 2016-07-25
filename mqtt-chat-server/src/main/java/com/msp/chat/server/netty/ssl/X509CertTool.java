@@ -2,12 +2,11 @@ package com.msp.chat.server.netty.ssl;
 
 import sun.security.x509.*;
 
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.ObjectOutputStream;
 import java.math.BigInteger;
-import java.security.GeneralSecurityException;
-import java.security.KeyPair;
-import java.security.PrivateKey;
-import java.security.SecureRandom;
+import java.security.*;
 import java.security.cert.X509Certificate;
 import java.util.Date;
 
@@ -61,7 +60,28 @@ public class X509CertTool {
 	}
 
 	public static void main(String[] args) {
+		try {
 
+//			String makeKeySrc = "/Users/mium2/project/java/MqttChat/certificate/private/test01.key";
+			String makeKeySrc = "/Users/mium2/project/git_repository/mqttMessenger/mqtt-chat-server/certificate/msp-chat.key";
+			ObjectOutputStream os = new ObjectOutputStream(new FileOutputStream(makeKeySrc));
+			KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
+			kpg.initialize(1024);
+			KeyPair mkeyPair = kpg.genKeyPair();
+
+			os.writeObject(mkeyPair);
+			os.close();
+			System.out.println("Private key : " + mkeyPair.getPrivate() + "\n");
+			System.out.println("Public key : " + mkeyPair.getPublic());
+			X509Certificate x509Certificate = new X509CertTool().generateCertificate("CN=mium2, OU=Test Team, O=Company, L=Seoul, C=KR", mkeyPair, 365 * 10, "SHA1withRSA");
+
+//			FileOutputStream fos = new FileOutputStream("/Users/mium2/project/java/MqttChat/certificate/private/test01.crt");
+			FileOutputStream fos = new FileOutputStream("/Users/mium2/project/git_repository/mqttMessenger/mqtt-chat-server/certificate/msp-chat.crt");
+			fos.write(x509Certificate.getEncoded());
+			fos.close();
+		}catch (Exception e){
+			e.printStackTrace();
+		}
 	}
 
 }

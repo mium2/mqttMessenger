@@ -11,6 +11,7 @@ import com.msp.chat.server.netty.*;
 import com.msp.chat.server.worker.CheckCacheExpireWorker;
 import com.msp.chat.server.worker.MqttMsgWorkerManager;
 import com.msp.chat.server.worker.PushSendManager;
+import com.msp.chat.server.worker.WebSocketMsgManager;
 import org.apache.commons.configuration.ConfigurationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,6 +41,7 @@ public class Server {
     private ServerAcceptor mqttAcceptor;
     private ServerAcceptor sslMqttAcceptor;
     private NettyHttpAcceptor httpAcceptor;
+    private WebSocketAcceptor webSocketAcceptor;
     
     public static void main(String[] args) throws Exception {
         System.out.println("Server started, version " + VERSION);
@@ -89,6 +91,9 @@ public class Server {
             // 푸시발송 메니저 구동
             PushSendManager.getInstance().startWorkers();
 
+            // 웹소켓 메세지처리 매니저 구동
+            WebSocketMsgManager.getInstance().startWorkers();
+
         }catch (Exception e){
             e.printStackTrace();
             System.exit(-1);
@@ -102,7 +107,10 @@ public class Server {
         server.sslBrokerStart();
 
         // http 서버 구동
-//        server.httpServerStart();
+        server.httpServerStart();
+
+        // webSocket 서버 구동
+        server.webSocketStart();
 
         //브로커 클라이언트 구동
         server.brokerClientStart();
@@ -128,6 +136,13 @@ public class Server {
     private void sslBrokerStart() throws Exception{
         sslMqttAcceptor = new NettySslMqttAcceptor();
         sslMqttAcceptor.initialize();
+    }
+
+    //WEBSocket 서버 구동
+    private void webSocketStart() throws Exception{
+        webSocketAcceptor = new WebSocketAcceptor();
+        webSocketAcceptor.run();
+
     }
 
     private void brokerClientStart(){

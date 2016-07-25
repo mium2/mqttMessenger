@@ -66,6 +66,10 @@ public class ChatMain {
         //"tcp://211.241.199.139:1883";
         String connectUrl = "tcp://"+BROKER_IP+":"+BROKER_PORT;
 
+//        String connectUrl = "ssl://"+BROKER_IP+":"+8443;
+
+        System.out.println("##### connect url : "+connectUrl);
+
         ChatMain chatmain = new ChatMain();
         if(chatmain.newConnect(connectUrl, USERID)) {
             chatmain.msgSend(CHATROOM_ID);

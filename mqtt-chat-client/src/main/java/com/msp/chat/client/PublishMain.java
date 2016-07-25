@@ -20,9 +20,9 @@ public class PublishMain {
          *  클라이언트 쓰레드로 여러개 구동 시키기 테스트
          *****************************************************************************/
 
-        String clientID = "PUBLISHER_01";
+        String clientID = "TEST01";
 //        Client client = new Client("211.241.199.92", 1883);
-        Client client = new Client("localhost", 1883);
+        Client client = new Client("localhost", 8443);
         try {
             for(int i=0; i<1; i++) {
                 client.connect(false, clientID);  //세션 클린 하지 않는다.
@@ -36,7 +36,7 @@ public class PublishMain {
         /*****************************************************************************
          *  메세지 전송 방법 :1 구독/토픽을 이용한 토픽을 구독한 모든 사용자 발송
          *****************************************************************************/
-        String topic = "A_TOPIC";
+        String topic = "850619141";
         String payload = "안녕하세요. 테스트 메세지입니다.";
         for(int i=0; i<10; i++) {
             payload = payload+i;

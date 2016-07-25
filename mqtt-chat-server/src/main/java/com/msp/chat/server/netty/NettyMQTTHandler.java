@@ -39,8 +39,8 @@ public class NettyMQTTHandler extends ChannelHandlerAdapter {
                 LOGGER.trace("###[NettyMQTTHandler channelRead] msg.getMessageType():"+msg.getMessageType());
             }
             if(msg.getMessageType() == PINGREQ){
-                if(LOGGER.isDebugEnabled()){
-                    LOGGER.debug("###[NettyMQTTHandler channelRead] ping");
+                if(LOGGER.isTraceEnabled()){
+                    LOGGER.trace("###[NettyMQTTHandler channelRead] ping");
                 }
                 PingRespMessage pingResp = new PingRespMessage();
                 ctx.writeAndFlush(pingResp);
