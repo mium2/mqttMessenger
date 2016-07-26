@@ -7,7 +7,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 /**
- * Created by mium2 on 15. 8. 19..
+ * Created by Y.B.H(mium2) on 16. 7. 27..
  */
 public class BrokerConfig {
     public final static String SYS_MSG_PRIFIX="#SYS_MSG";

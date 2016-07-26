@@ -10,7 +10,9 @@ import java.io.FileInputStream;
 import java.io.InputStream;
 import java.security.KeyStore;
 
-
+/**
+ * Created by Y.B.H(mium2) on 16. 7. 27..
+ */
 public final class SSslContextFactory {
     private static final Logger LOGGER = LoggerFactory.getLogger("server");
 

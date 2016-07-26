@@ -17,7 +17,7 @@ import org.slf4j.LoggerFactory;
 
 
 /**
- * Created by Y.B.H(mium2) on 16. 4. 11..
+ * Created by Y.B.H(mium2) on 16. 7. 20..
  */
 public class MqttMsgWorkerManager {
     private final Logger logger = LoggerFactory.getLogger("server");

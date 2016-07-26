@@ -14,7 +14,6 @@ import com.msp.chat.server.commons.utill.BrokerConfig;
 import com.msp.chat.server.storage.redis.bean.PubMsgBean;
 import com.msp.chat.server.worker.*;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,7 +25,7 @@ import java.nio.ByteBuffer;
 import java.util.*;
 
 /**
- * Created by Y.B.H(mium2) on 16. 4. 20..
+ * Created by Y.B.H(mium2) on 16. 7. 20..
  */
 @Service
 public class RedisStorageService {

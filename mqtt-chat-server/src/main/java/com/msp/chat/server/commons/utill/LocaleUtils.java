@@ -8,7 +8,7 @@ import java.util.Locale;
 import java.util.ResourceBundle;
 
 /**
- * Created by mium2 on 15. 8. 19..
+ * Created by Y.B.H(mium2) on 16. 7. 27..
  */
 public class LocaleUtils {
     private static ResourceBundle messages = null;

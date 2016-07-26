@@ -12,7 +12,7 @@ import java.util.Iterator;
 import java.util.List;
 
 /**
- * Created by Y.B.H(mium2) on 15. 8. 25..
+ * Created by Y.B.H(mium2) on 16. 7. 18..
  */
 public class CacheOfflineMsgStore {
     private Logger LOGGER = LoggerFactory.getLogger("server");

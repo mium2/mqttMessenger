@@ -9,7 +9,7 @@ import java.io.IOException;
 import java.io.Reader;
 
 /**
- * Created by mium2 on 2014-04-07.
+ * Created by Y.B.H(mium2) on 16. 7. 27..
  */
 public class SqlMapClient {
     private static SqlSession session;

@@ -26,7 +26,7 @@ import static com.msp.chat.core.mqtt.proto.messages.AbstractMessage.*;
 import static com.msp.chat.core.mqtt.proto.messages.AbstractMessage.PINGREQ;
 
 /**
- * Created by Y.B.H(mium2) on 16. 4. 5..
+ * Created by Y.B.H(mium2) on 16. 7. 27..
  */
 public class NettySslMqttHandler extends ChannelHandlerAdapter {
 

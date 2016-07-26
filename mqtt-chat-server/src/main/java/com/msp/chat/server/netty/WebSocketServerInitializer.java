@@ -25,6 +25,7 @@ import io.netty.handler.ssl.SslContext;
 import io.netty.handler.timeout.IdleStateHandler;
 
 /**
+ * Created by Y.B.H(mium2) on 16. 7. 18..
  */
 public class WebSocketServerInitializer extends ChannelInitializer<SocketChannel> {
 

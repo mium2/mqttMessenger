@@ -3,7 +3,7 @@ package com.msp.chat.server.bean;
 import com.msp.chat.server.netty.ServerChannel;
 
 /**
- * Created by Y.B.H(mium2) on 15. 8. 25..
+ * Created by Y.B.H(mium2) on 16. 7. 27..
  */
 public class ConnectionDescriptor {
     

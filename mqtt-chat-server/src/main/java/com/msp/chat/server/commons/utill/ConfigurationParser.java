@@ -8,12 +8,7 @@ import java.text.ParseException;
 import java.util.Properties;
 
 /**
- * Mosquitto configuration parser.
- * 
- * A line that at the very first has # is a comment
- * Each line has key value format, where the separator used it the space.
- * 
- * @author andrea
+ * Created by Y.B.H(mium2) on 16. 7. 27..
  */
 public class ConfigurationParser {
     

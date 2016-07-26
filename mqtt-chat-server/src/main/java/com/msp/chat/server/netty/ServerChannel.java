@@ -1,8 +1,7 @@
 package com.msp.chat.server.netty;
 
 /**
- *
- * @author andrea
+ * Created by Y.B.H(mium2) on 16. 7. 27..
  */
 public interface ServerChannel {
     

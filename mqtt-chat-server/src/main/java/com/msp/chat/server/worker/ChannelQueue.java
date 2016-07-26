@@ -8,7 +8,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 /**
- * Created by Y.B.H(mium2) on 16. 5. 19..
+ * Created by Y.B.H(mium2) on 16. 7. 20..
  */
 public class ChannelQueue {
     private final Logger LOGGER = LoggerFactory.getLogger("server");

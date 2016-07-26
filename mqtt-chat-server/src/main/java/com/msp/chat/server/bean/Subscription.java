@@ -6,9 +6,7 @@ import com.msp.chat.core.mqtt.proto.messages.AbstractMessage.QOSType;
 import java.io.Serializable;
 
 /**
- * Maintain the information about which Topic a certain ClientID is subscribed 
- * and at which QoS
- *
+ * Created by Y.B.H(mium2) on 16. 7. 27..
  */
 public class Subscription implements Serializable {
     

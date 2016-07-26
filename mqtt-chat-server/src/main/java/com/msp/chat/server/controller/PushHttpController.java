@@ -4,9 +4,7 @@ import com.google.gson.JsonObject;
 import java.util.Map;
 
 /**
- /**
- * User: mium2(Yoo Byung Hee)
- * Date: 2014-05-07
+ * Created by Y.B.H(mium2) on 16. 7. 27..
  */
 public class PushHttpController{
 

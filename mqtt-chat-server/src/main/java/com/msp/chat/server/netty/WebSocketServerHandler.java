@@ -29,7 +29,9 @@ import static io.netty.handler.codec.http.HttpHeaderNames.*;
 import static io.netty.handler.codec.http.HttpMethod.GET;
 import static io.netty.handler.codec.http.HttpResponseStatus.*;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
-
+/**
+ * Created by Y.B.H(mium2) on 16. 7. 18..
+ */
 public class WebSocketServerHandler extends SimpleChannelInboundHandler<Object> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("server");

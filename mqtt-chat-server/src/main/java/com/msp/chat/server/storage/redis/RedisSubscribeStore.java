@@ -14,7 +14,7 @@ import java.util.HashSet;
 import java.util.List;
 
 /**
- * Created by Y.B.H(mium2) on 16. 5. 2..
+ * Created by Y.B.H(mium2) on 16. 7. 20..
  */
 @Service
 public class RedisSubscribeStore implements ISubscribeStore {

@@ -10,7 +10,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Calendar;
-
+/**
+ * Created by Y.B.H(mium2) on 16. 7. 20..
+ */
 public class CheckCacheExpireWorker implements Runnable{
 	private static final Logger LOGGER = LoggerFactory.getLogger("server");
 	private final RedisStorageService redisStorageService;

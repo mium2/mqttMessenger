@@ -6,11 +6,7 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.http.HttpServerCodec;
 
 /**
- * Created by IntelliJ IDEA.
- * User: mium2(Yoo Byung Hee)
- * Date: 2014-05-22
- * Time: 오후 2:23
- * To change this template use File | Settings | File Templates.
+ * Created by Y.B.H(mium2) on 16. 7. 27..
  */
 public class HttpChannelInitializer extends ChannelInitializer<SocketChannel> {
 

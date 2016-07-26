@@ -19,11 +19,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 /**
- * Created by IntelliJ IDEA.
- * User: mium2(Yoo Byung Hee)
- * Date: 2014-05-07
- * Time: 오후 3:59
- * To change this template use File | Settings | File Templates.
+ * Created by Y.B.H(mium2) on 16. 7. 27..
  */
 public class NettyMqttAcceptor implements ServerAcceptor {
     

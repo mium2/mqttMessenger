@@ -11,10 +11,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Created by IntelliJ IDEA.
- * User: mium2(Yoo Byung Hee)
- * Date: 2014-05-22
- * Time: 오후 2:23
+ * Created by Y.B.H(mium2) on 16. 7. 27..
  */
 public class NettyChannel implements ServerChannel {
     

@@ -9,7 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Created by Y.B.H(mium2) on 16. 4. 11..
+ * Created by Y.B.H(mium2) on 16. 7. 20..
  */
 public class MqttMsgWorkerThread extends Thread{
     private Logger LOGGER = LoggerFactory.getLogger(this.getClass().getName());

@@ -9,7 +9,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Created by Y.B.H(mium2) on 14. 5. 7..
+ * Created by Y.B.H(mium2) on 16. 7. 20..
  */
 public class FileAuthenticator implements IAuthenticator {
 

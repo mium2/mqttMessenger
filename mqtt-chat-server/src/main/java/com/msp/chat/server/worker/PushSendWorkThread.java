@@ -4,7 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Created by Y.B.H(mium2) on 16. 6. 29..
+ * Created by Y.B.H(mium2) on 16. 7. 20..
  */
 public class PushSendWorkThread extends Thread{
     private Logger log = LoggerFactory.getLogger("server");

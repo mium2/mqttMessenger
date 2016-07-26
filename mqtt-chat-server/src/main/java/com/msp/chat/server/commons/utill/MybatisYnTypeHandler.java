@@ -10,7 +10,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 
 /**
- * Created by mium2 on 2014-04-11.
+ * Created by Y.B.H(mium2) on 16. 7. 27..
  */
 public class MybatisYnTypeHandler implements TypeHandler<Boolean> {
 

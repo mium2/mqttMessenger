@@ -1,5 +1,7 @@
 package com.msp.chat.server.commons.utill;
-
+/**
+ * Created by Y.B.H(mium2) on 16. 7. 27..
+ */
 class Token {
 
     static final Token EMPTY = new Token("");

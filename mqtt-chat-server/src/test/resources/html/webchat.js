@@ -4,8 +4,8 @@
 var ws;
 var lastMessageSent;
 var clientID = "TEST01";
-var chatRoomUserCnt = 1;
-var chatRoomID = "867396357";
+var chatRoomUserCnt = 10;
+var chatRoomID = "f92738ff9385132b6c430826b2d820d3";
 
 if ("WebSocket" in window){
     // Let us open a web socket
@@ -33,6 +33,8 @@ if ("WebSocket" in window){
                     console.log("## [CONNECT ACK MSG]:("+resultCode+")"+resultMsg);
                     if(resultCode=="200"){
                         sendPing();
+                    }else{
+                        alert(resultMsg);
                     }
                 }else if(command=="PUBACK"){
                     var topic = revMsgArr[1];

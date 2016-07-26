@@ -35,7 +35,7 @@ import java.util.*;
 import java.util.List;
 
 /**
- * Created by Y.B.H(mium2) on 16. 4. 11..
+ * Created by Y.B.H(mium2) on 16. 7. 20..
  */
 public class MqttMsgProcessor {
     private final Logger LOGGER = LoggerFactory.getLogger("server");

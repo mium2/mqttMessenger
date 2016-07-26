@@ -21,7 +21,7 @@ import javax.net.ssl.SSLEngine;
 import java.io.IOException;
 
 /**
- * Created by Y.B.H(mium2) on 16. 4. 5..
+ * Created by Y.B.H(mium2) on 16. 7. 27..
  */
 public class NettySslMqttAcceptor implements ServerAcceptor {
 

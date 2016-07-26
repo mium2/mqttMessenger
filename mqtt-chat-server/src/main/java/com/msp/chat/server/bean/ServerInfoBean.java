@@ -1,11 +1,7 @@
 package com.msp.chat.server.bean;
 
 /**
- * Created by IntelliJ IDEA.
- * User: mium2(Yoo Byung Hee)
- * Date: 2015-04-21
- * Time: 오전 10:46
- * To change this template use File | Settings | File Templates.
+ * Created by Y.B.H(mium2) on 16. 7. 27..
  */
 public class ServerInfoBean {
     private String SERVERID = "";

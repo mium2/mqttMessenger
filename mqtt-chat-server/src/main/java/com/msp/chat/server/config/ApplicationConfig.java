@@ -18,7 +18,7 @@ import java.util.HashSet;
 import java.util.List;
 
 /**
- * Created by Y.B.H(mium2) on 16. 4. 1..
+ * Created by Y.B.H(mium2) on 16. 7. 27..
  */
 @ComponentScan(basePackages = {"com.msp.chat.server"})
 @Configuration

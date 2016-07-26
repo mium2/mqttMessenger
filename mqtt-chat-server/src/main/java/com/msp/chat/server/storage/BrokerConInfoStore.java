@@ -10,7 +10,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Created by Y.B.H(mium2) on 16. 6. 24..
+ * Created by Y.B.H(mium2) on 16. 7. 20..
  */
 public class BrokerConInfoStore {
     private Logger logger = LoggerFactory.getLogger("server");

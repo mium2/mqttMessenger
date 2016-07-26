@@ -19,11 +19,7 @@ import static io.netty.handler.codec.http.HttpHeaderNames.*;
 import static io.netty.handler.codec.http.HttpResponseStatus.*;
 import static io.netty.handler.codec.http.HttpVersion.*;
 /**
- * Created by IntelliJ IDEA.
- * User: mium2(Yoo Byung Hee)
- * Date: 2014-05-22
- * Time: 오후 1:11
- * To change this template use File | Settings | File Templates.
+ * Created by Y.B.H(mium2) on 16. 7. 27..
  */
 public class NettyHttpHandler extends ChannelHandlerAdapter {
 

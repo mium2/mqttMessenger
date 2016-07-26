@@ -1,6 +1,5 @@
 package com.msp.chat.server.netty.ssl;
 
-import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
 

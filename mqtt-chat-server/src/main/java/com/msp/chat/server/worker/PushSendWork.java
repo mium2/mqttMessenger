@@ -8,7 +8,7 @@ import java.io.Serializable;
 import java.util.Map;
 
 /**
- * Created by Y.B.H(mium2) on 16. 6. 29..
+ * Created by Y.B.H(mium2) on 16. 7. 20..
  */
 public class PushSendWork implements Serializable{
     private static final long serialVersionUID = 2086333882495305577L;

@@ -5,6 +5,9 @@ import java.io.InputStream;
 import java.security.KeyStore;
 
 /**
+ * Created by Y.B.H(mium2) on 16. 7. 27..
+ */
+/**
  * A bogus key storage which provides all the required information to create an
  * example SSL connection.
  * 

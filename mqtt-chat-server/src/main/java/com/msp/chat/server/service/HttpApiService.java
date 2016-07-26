@@ -8,7 +8,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Created by Y.B.H(mium2) on 16. 6. 24..
+ * Created by Y.B.H(mium2) on 16. 7. 18..
  */
 public class HttpApiService {
     private static HttpApiService instance = new HttpApiService();

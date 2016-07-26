@@ -24,7 +24,7 @@ import java.nio.ByteBuffer;
 import java.util.*;
 
 /**
- * Created by Y.B.H(mium2) on 16. 6. 27..
+ * Created by Y.B.H(mium2) on 16. 7. 27..
  */
 public class BrokerClientManager {
     private String THIS_SERVERID = "";

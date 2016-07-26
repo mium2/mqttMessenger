@@ -7,7 +7,7 @@ import java.util.HashSet;
 import java.util.List;
 
 /**
- * Created by Y.B.H(mium2) on 15. 8. 28..
+ * Created by Y.B.H(mium2) on 16. 7. 18..
  */
 public class MemorySubscribeStore implements ISubscribeStore {
 

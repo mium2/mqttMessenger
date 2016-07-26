@@ -6,7 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Created by Y.B.H(mium2) on 16. 4. 14..
+ * Created by Y.B.H(mium2) on 16. 7. 27..
  */
 public class NettyTestMqtthandler extends SimpleChannelInboundHandler<byte[]> {
 
