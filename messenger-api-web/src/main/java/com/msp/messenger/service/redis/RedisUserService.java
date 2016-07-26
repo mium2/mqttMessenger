@@ -29,6 +29,7 @@ public class RedisUserService {
     public final static String REDIS_ROOMINFO_TABLE = "ROOMINFO";
     public final static String REDIS_ROOMID_SUBSCRUBE = "ROOMID_SUBSCRIBE";  // 메신저서버가 발송할때 참조하는 키테이블
     public final static String REDIS_USER_BROKERID = "USER_BROKERID";
+    public final static String REDIS_ROOMID_MSG = "ROOMID_";
 
     @Value("${MAX_BROKER_ALLOCATE_USER:500000}")
     private String MAX_BROKER_ALLOCATE_USER;
@@ -308,21 +309,23 @@ public class RedisUserService {
         //STEP1. ROOMID_SUBSCRIBE에서 속해있는 해당 유저들을 찾아내 USERID_ROOMIDS 키테이블에서 대화방 삭제
         //STEP2. ROOMINFO 키테이블에서 대화방삭제
         //STEP3. ROOMID_SUBSCRIBE 키테이블에서 대화방 삭제
+        //STEP4. ROOMID_대화방아이디  키테이블(대화내용히스토리) 삭제
         Object subscribersObj = slaveRedisTemplate.opsForHash().get(REDIS_ROOMID_SUBSCRUBE,roomid);
         List<Object> multiUseridList = new ArrayList<Object>();
         if(subscribersObj!=null){
             HashSet<String> subscribersSet = JsonObjectConverter.getObjectFromJSON(subscribersObj.toString(),HashSet.class);
             for(String subscriber : subscribersSet){
+                // "유저아이디|할당받은브로커아이디"로 구성되어있음.
                 String[] subscriberArr = subscriber.split("\\|");
                 String userID = subscriberArr[0];
                 multiUseridList.add(userID);
             }
-
             //USERID_ROOMIDS 키테이블에서 대화방 삭제
             List<Object> roomSetList = slaveRedisTemplate.opsForHash().multiGet(REDIS_USERID_ROOMIDS_TABLE,multiUseridList);
             for(int i=0; i<roomSetList.size(); i++){
                 Object obj = roomSetList.get(i);
                 if(obj!=null){
+                    // 해당유저 대화방리스트에서 해당 대화방 삭제
                     HashSet<String> roomIdSet = JsonObjectConverter.getObjectFromJSON(obj.toString(),HashSet.class);
                     roomIdSet.remove(roomid);
                     try {
@@ -332,18 +335,19 @@ public class RedisUserService {
                     }
                 }
             }
-
+            // 대화방 정보 테이블 삭제
             masterRedisTemplate.opsForHash().delete(REDIS_ROOMINFO_TABLE,roomid);
-
+            // 대화방아이디_대화유저정보 키 테이블 삭제
             masterRedisTemplate.opsForHash().delete(REDIS_ROOMID_SUBSCRUBE,roomid);
+            // 채팅방 메세지 히스토리 테이블 삭제
+            masterRedisTemplate.opsForHash().delete(REDIS_ROOMID_MSG+roomid);
         }
-
     }
 
     public void getOutChatRoom(String appid, String userid, String roomid) throws Exception{
-        // TODO : 1.챗팅방 정보에서 유저아이디리스트, 핸폰리스트에서 삭제 처리. 2.유저아이디_챗팅룸아이디 리스트에서 해당 챗팅룸 아이디 삭제. 3.챗팅방아이디에 유저아이디 리스트에서 해당 아이디 삭제처리
+        // 1.챗팅방 정보에서 유저아이디리스트  해당유저삭제, 핸폰리스트에서 핸드폰번호삭제 처리. 2.유저아이디_챗팅룸아이디 리스트에서 해당 챗팅룸 아이디 삭제. 3.챗팅방아이디에 유저아이디 리스트에서 해당 아이디 삭제처리
         // STEP1 : 챗팅방정보에서 삭제.
-        // 만약 한명만 남는 경우는 어떻게 처리 해야 되나? 채팅방을 눌렀을때 서버로 부터 상세정보를 받고 그때 대화상대가 없다는 표시를 하도록 유도한다.
+        // 만약, 한명만 남는 경우는 어떻게 처리 해야 되나? 채팅방을 눌렀을때 서버로 부터 상세정보를 받고 그때 대화상대가 없다는 표시를 하도록 유도한다.
         Object chatRoomJsonObj = slaveRedisTemplate.opsForHash().get(REDIS_ROOMINFO_TABLE,roomid);
         if(chatRoomJsonObj!=null){
             ChatRoomInfoBean chatRoomInfoBean = JsonObjectConverter.getObjectFromJSON(chatRoomJsonObj.toString(),ChatRoomInfoBean.class);

@@ -7,19 +7,16 @@ var clientID = "TEST01";
 var chatRoomUserCnt = 1;
 var chatRoomID = "867396357";
 
-if ("WebSocket" in window)
-{
+if ("WebSocket" in window){
     // Let us open a web socket
     ws = new WebSocket("ws://localhost:8080/webchat");
     ws.binaryType = "arraybuffer";
-    ws.onopen = function()
-    {
+    ws.onopen = function() {
         var connectMsg="CONNECT|"+clientID;
         ws.send(connectMsg);
     };
 
-    ws.onmessage = function (evt)
-    {
+    ws.onmessage = function (evt){
         if(evt.data instanceof ArrayBuffer){
             console.log(evt.data);
         }else{
@@ -50,7 +47,6 @@ if ("WebSocket" in window)
                     ws.send("PUBACK|"+publisherid+"|"+messageid);
                     putRevMsgUI(payload);
                 }else if(command=="#SYS_MSG00"){
-
                     var topic = revMsgArr[1];
                     var messageid = revMsgArr[2];
                     var notRevCnt = revMsgArr[3];
@@ -78,8 +74,7 @@ if ("WebSocket" in window)
 
     };
 
-    ws.onclose = function()
-    {
+    ws.onclose = function(){
         // websocket is closed.
         ws.send("close");
     };
@@ -88,66 +83,103 @@ if ("WebSocket" in window)
     alert("WebSocket NOT supported by your Browser!");
 }
 
-// Blob 를 파일에 저장
-function saveData(blob, fileName) {
-    var a = document.createElement("a");
-    document.body.appendChild(a);
-    a.style = "display: none";
-
-    url = window.URL.createObjectURL(blob);
-    a.href = url;
-    a.download = fileName;
-    a.click();
-    window.URL.revokeObjectURL(url);
-};
-
-// ArrayBuffer 를 파일에 저장
-function saveData2(arrayBuffer, fileName) {
-    var a = document.createElement("a");
-    document.body.appendChild(a);
-    a.style = "display: none";
-    var parts = [];
-    parts.push(arrayBuffer);
-    url = window.URL.createObjectURL(new Blob(parts));
-    a.href = url;
-    a.download = fileName;
-    a.click();
-    window.URL.revokeObjectURL(url);
-};
-
-//canvas의 이미지 데이터를 서버로 전송하는 예
-function sendImgArrayBuffer(){
-    // Sending canvas ImageData as ArrayBuffer
-    var img = canvas_context.getImageData(0, 0, 400, 320);
-    var binary = new Uint8Array(img.data.length);
-    for (var i = 0; i < img.data.length; i++) {
-        binary[i] = img.data[i];
-    }
-    ws.send(binary.buffer);
-};
-
-//파일을 Blob를 서버로 전송함
-function sendFileBlob() {
-    // Sending file as Blob
-    var file = document.querySelector('input[type="file"]').files[0];
-//            var receiver = $('#receiver').val();
-//            var msg = {sender:clientId, receiver:receiver};
-//            msg.fname = file.name;
-//            //파일 데이터에 앞서 송,수신자, 파일명을 텍스트로 전송한다
-//            ws.send(JSON.stringify(msg));
-//            //파일 데이터를 전송한다
-    ws.send(file);
-}
-
 //파일을 ArrayBuffer를 서버로 전송함
 function sendFileArrayBuffer() {
-    alert("sendFileArrayBuffer");
     var file = document.querySelector('input[type="file"]').files[0];
+    var fileObj = document.getElementById("attach");
+    if(fileObj!=""){
+        var pathHeader = fileObj.value.lastIndexOf("\\");
+        console.log("## pathHeader : "+pathHeader);
+        var pathMiddle = fileObj.value.lastIndexOf(".");
+        var pathEnd = fileObj.value.length;
+        var fileName = fileObj.value.substring(pathHeader+1, pathMiddle);
+        var extName = fileObj.value.substring(pathMiddle+1, pathEnd);
+        var allFilename = fileName+"."+extName;
+    }
+
     var fileReader = new FileReader();
     fileReader.onload = function() {
-        arrayBuffer = this.result;
-//                console.log(arrayBuffer);
-        ws.send(arrayBuffer);
+        var fileArrayBuf = this.result;
+        ///////////// 바이너리로 만들기 //////////////////////
+        // Command 문자 바이너리만들기//
+        var commandbuf = new ArrayBuffer(UTF8Length("#SYS_MSG03"));
+        var commandBytes = new Uint8Array(commandbuf);
+        stringToUTF8("#SYS_MSG03", commandBytes, 0);
+
+        // 토픽명 바이너리만들기//
+        var chatRoomIDbuf = new ArrayBuffer(UTF8Length(chatRoomID));
+        var chatRoomIDBytes = new Uint8Array(chatRoomIDbuf);
+        stringToUTF8(chatRoomID, chatRoomIDBytes, 0);
+
+        // 토픽명길이 바이너리만들기//
+        var chatRoomIDLenbuf = new ArrayBuffer(UTF8Length(chatRoomIDBytes.length+""));
+        var chatRoomIDLenBytes = new Uint8Array(chatRoomIDLenbuf);
+        stringToUTF8(chatRoomIDBytes.length+"", chatRoomIDLenBytes, 0);
+
+        // 파일명 바이너리 만들기
+        var fileNameBuf = new ArrayBuffer(UTF8Length(allFilename));
+        var fileNameBytes = new Uint8Array(fileNameBuf);
+        stringToUTF8(allFilename, fileNameBytes, 0);
+
+        //파일명 길이 바이너리 만들기
+        var fileNameLen = fileNameBytes.length+"";
+        console.log("## 파일명 길이:"+fileNameLen);
+        var fileNameLenbuf = new ArrayBuffer(UTF8Length(fileNameLen));
+        var fileNameLenBytes = new Uint8Array(fileNameLenbuf);
+        stringToUTF8(fileNameLen, fileNameLenBytes, 0);
+        ///////////////////////////////////////////////////
+
+        console.log("## filename :"+ allFilename);
+        console.log("## fileNameBytes length:"+fileNameBytes.length);
+        console.log(("## fileArrayBuf length:"+fileArrayBuf.byteLength));
+
+        var offset = 0;
+        // 보낼 총바이트 Array할당
+        //Command(#SYS_MSG03)10byte+5byte(메세지아이디) +4byte(토픽길이)+토픽+ 파일명길이 4byte  + 파일명 가변  + 보낼파일바이트
+        var sendBuff = new Uint8Array(commandBytes.length+5+4+chatRoomIDBytes.length+4+fileNameBytes.length+fileArrayBuf.byteLength);
+        console.log("### sendBuff.length:"+sendBuff.length);
+
+        // Command bytes 넣음
+        sendBuff.set(commandBytes,offset);
+        offset = commandBytes.length;
+        console.log("## Command 넣은 후 offset :"+offset);
+
+        // 메세지 아이디 넣음
+        var makeMsgId = makeMessageID()+"";
+        var msgIDbuf = new ArrayBuffer(UTF8Length(makeMsgId));
+        var msgIDBytes = new Uint8Array(msgIDbuf);
+        stringToUTF8(makeMsgId, msgIDBytes, 0);
+        sendBuff.set(msgIDBytes,offset);
+        offset = offset+5;
+        console.log("## makeMsgId 넣은 후 offset :"+offset);
+
+        // 토픽 길이넣음
+        sendBuff.set(chatRoomIDLenBytes,offset);
+        offset = offset+4;
+        console.log("## chatRoomIDLenBytes 넣은 후 offset :"+offset);
+
+        // 토픽 넣음
+        sendBuff.set(chatRoomIDBytes,offset);
+        offset = offset+chatRoomIDBytes.length;
+        console.log("## chatRoomIDBytes 넣은 후 offset :"+offset);
+
+        // 파일명 길이넣음
+        sendBuff.set(fileNameLenBytes,offset);
+        offset = offset+4;
+        console.log("## 파일명 길이 넣은 후 : offset :"+offset);
+
+        // 파일명 바이트 넣음
+        sendBuff.set(fileNameBytes,offset);
+        offset = offset+fileNameBytes.length;
+        console.log("## 파일명 넣은 후 : offset :"+offset);
+
+        // 보낼파일 바이너리 넣음
+        sendBuff.set(new Uint8Array(fileArrayBuf),offset);
+
+        putSendMsgUI("파일"+allFilename + " 전송",makeMsgId);
+
+        ws.send(sendBuff);
+        document.getElementById("message").value = "";
     };
     fileReader.readAsArrayBuffer(file);
 }
@@ -166,120 +198,6 @@ function sendPing(){
     );
 }
 
-
-/**
- * Takes a String and writes it into an array as UTF8 encoded bytes.
- * @private
- */
-function stringToUTF8(input, output, start) {
-    var pos = start;
-    for (var i = 0; i<input.length; i++) {
-        var charCode = input.charCodeAt(i);
-
-        // Check for a surrogate pair.
-        if (0xD800 <= charCode && charCode <= 0xDBFF) {
-            var lowCharCode = input.charCodeAt(++i);
-            if (isNaN(lowCharCode)) {
-                throw new Error(format(ERROR.MALFORMED_UNICODE, [charCode, lowCharCode]));
-            }
-            charCode = ((charCode - 0xD800)<<10) + (lowCharCode - 0xDC00) + 0x10000;
-
-        }
-
-        if (charCode <= 0x7F) {
-            output[pos++] = charCode;
-        } else if (charCode <= 0x7FF) {
-            output[pos++] = charCode>>6  & 0x1F | 0xC0;
-            output[pos++] = charCode     & 0x3F | 0x80;
-        } else if (charCode <= 0xFFFF) {
-            output[pos++] = charCode>>12 & 0x0F | 0xE0;
-            output[pos++] = charCode>>6  & 0x3F | 0x80;
-            output[pos++] = charCode     & 0x3F | 0x80;
-        } else {
-            output[pos++] = charCode>>18 & 0x07 | 0xF0;
-            output[pos++] = charCode>>12 & 0x3F | 0x80;
-            output[pos++] = charCode>>6  & 0x3F | 0x80;
-            output[pos++] = charCode     & 0x3F | 0x80;
-        };
-    }
-    return output;
-}
-
-/**
- * Takes a String and calculates its length in bytes when encoded in UTF8.
- * @private
- */
-function UTF8Length(input) {
-    var output = 0;
-    for (var i = 0; i<input.length; i++)
-    {
-        var charCode = input.charCodeAt(i);
-        if (charCode > 0x7FF)
-        {
-            // Surrogate pair means its a 4 byte character
-            if (0xD800 <= charCode && charCode <= 0xDBFF)
-            {
-                i++;
-                output++;
-            }
-            output +=3;
-        }
-        else if (charCode > 0x7F)
-            output +=2;
-        else
-            output++;
-    }
-    return output;
-}
-
-function parseUTF8(input, offset, length) {
-    var output = "";
-    var utf16;
-    var pos = offset;
-
-    while (pos < offset+length)
-    {
-        var byte1 = input[pos++];
-        if (byte1 < 128)
-            utf16 = byte1;
-        else
-        {
-            var byte2 = input[pos++]-128;
-            if (byte2 < 0)
-                throw new Error(format(ERROR.MALFORMED_UTF, [byte1.toString(16), byte2.toString(16),""]));
-            if (byte1 < 0xE0)             // 2 byte character
-                utf16 = 64*(byte1-0xC0) + byte2;
-            else
-            {
-                var byte3 = input[pos++]-128;
-                if (byte3 < 0)
-                    throw new Error(format(ERROR.MALFORMED_UTF, [byte1.toString(16), byte2.toString(16), byte3.toString(16)]));
-                if (byte1 < 0xF0)        // 3 byte character
-                    utf16 = 4096*(byte1-0xE0) + 64*byte2 + byte3;
-                else
-                {
-                    var byte4 = input[pos++]-128;
-                    if (byte4 < 0)
-                        throw new Error(format(ERROR.MALFORMED_UTF, [byte1.toString(16), byte2.toString(16), byte3.toString(16), byte4.toString(16)]));
-                    if (byte1 < 0xF8)        // 4 byte character
-                        utf16 = 262144*(byte1-0xF0) + 4096*byte2 + 64*byte3 + byte4;
-                    else                     // longer encodings are not supported
-                        throw new Error(format(ERROR.MALFORMED_UTF, [byte1.toString(16), byte2.toString(16), byte3.toString(16), byte4.toString(16)]));
-                }
-            }
-        }
-
-        if (utf16 > 0xFFFF)   // 4 byte character - express as a surrogate pair
-        {
-            utf16 -= 0x10000;
-            output += String.fromCharCode(0xD800 + (utf16 >> 10)); // lead character
-            utf16 = 0xDC00 + (utf16 & 0x3FF);  // trail character
-        }
-        output += String.fromCharCode(utf16);
-    }
-    return output;
-}
-
 //메세지 발송
 window.onload = function() {
     document.getElementById("message").onkeypress = function() {
@@ -287,23 +205,14 @@ window.onload = function() {
 
             // Web Socket is connected, send data using send()
             var sendMsg = document.getElementById("message").value;
-
             ///////////// 바이너리로 만들기 //////////////////////
             //var buffer = new ArrayBuffer(UTF8Length(sendMsg));
             //var byteStream = new Uint8Array(buffer);
             //stringToUTF8(sendMsg, byteStream, 0);
             ///////////////////////////////////////////////////
             var makeMsgId = makeMessageID();
-            var now = new Date();
-            var selfChatDiv = "<li class='self'>";
-            selfChatDiv=selfChatDiv+"<div class='avatar'><img src='http://i.imgur.com/DY6gND0.png' draggable='false'/></div>";
-            selfChatDiv=selfChatDiv+"<div class='msg'>";
-            selfChatDiv=selfChatDiv+"<p>"+sendMsg+"</p>";
-            selfChatDiv=selfChatDiv+"<div id='"+makeMsgId+"_NotReadDiv' style='font-size: 0.7rem;color: darkcyan'>"+chatRoomUserCnt+"</div><time>"+now.getHours()+":"+now.getMinutes()+"</time>";
-            selfChatDiv=selfChatDiv+"</div></li>";
+            putSendMsgUI(sendMsg,makeMsgId);
 
-            var chatOl = document.getElementById("chat_ol");
-            chatOl.insertAdjacentHTML('beforeend', selfChatDiv);
             // command|clientid|messageid|topic|메세지
             sendMsg="PUBLISH|"+clientID+"|"+makeMsgId+"|"+chatRoomID+"|"+sendMsg;
 
@@ -311,6 +220,19 @@ window.onload = function() {
             document.getElementById("message").value = "";
         }
     }
+}
+
+function putSendMsgUI(sendMsg, makeMsgId){
+    var now = new Date();
+    var selfChatDiv = "<li class='self'>";
+    selfChatDiv=selfChatDiv+"<div class='avatar'><img src='http://i.imgur.com/DY6gND0.png' draggable='false'/></div>";
+    selfChatDiv=selfChatDiv+"<div class='msg'>";
+    selfChatDiv=selfChatDiv+"<p>"+sendMsg+"</p>";
+    selfChatDiv=selfChatDiv+"<div id='"+makeMsgId+"_NotReadDiv' style='font-size: 0.7rem;color: darkcyan'>"+chatRoomUserCnt+"</div><time>"+now.getHours()+":"+now.getMinutes()+"</time>";
+    selfChatDiv=selfChatDiv+"</div></li>";
+
+    var chatOl = document.getElementById("chat_ol");
+    chatOl.insertAdjacentHTML('beforeend', selfChatDiv);
 }
 
 function putRevMsgUI(revMsg){
@@ -340,22 +262,4 @@ function putRevImgUI(downUrl, thumnailUrl){
 
     var chatOl = document.getElementById("chat_ol");
     chatOl.insertAdjacentHTML('beforeend', otherChatDiv);
-}
-
-function makeMessageID(){
-    var msgid = localStorage.getItem("messageid");
-    if(msgid==null){
-        msgid = 1;
-        localStorage.setItem("messageid",msgid);
-        return msgid;
-    }else{
-        if(msgid>=65536){
-            msgid = 1;
-        }else{
-            msgid++;
-        }
-        localStorage.setItem("messageid",msgid);
-        return msgid;
-    }
-
 }

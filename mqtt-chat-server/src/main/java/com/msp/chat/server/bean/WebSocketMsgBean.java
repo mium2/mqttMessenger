@@ -8,7 +8,9 @@ import com.msp.chat.server.netty.ServerChannel;
 public class WebSocketMsgBean {
     private ServerChannel serverChannel;
     private String command = "";
-    private String[] requestArr;
+    private String[] requestArr; // requestArr[0]:command, requestArr[1]:connectID, requestArr[2]:messageId, requestArr[3]:topic, requestArr[4]:message
+    private String filename;
+    private byte[] attachFile;
 
 
     public WebSocketMsgBean(ServerChannel _serverChannel,String _command, String[] _requestArr){
@@ -40,5 +42,21 @@ public class WebSocketMsgBean {
 
     public void setRequestArr(String[] requestArr) {
         this.requestArr = requestArr;
+    }
+
+    public String getFilename() {
+        return filename;
+    }
+
+    public void setFilename(String filename) {
+        this.filename = filename;
+    }
+
+    public byte[] getAttachFile() {
+        return attachFile;
+    }
+
+    public void setAttachFile(byte[] attachFile) {
+        this.attachFile = attachFile;
     }
 }

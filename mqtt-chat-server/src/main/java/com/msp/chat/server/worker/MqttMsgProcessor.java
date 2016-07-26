@@ -6,7 +6,6 @@ import com.msp.chat.core.mqtt.Constants;
 import com.msp.chat.server.Server;
 import com.msp.chat.server.bean.ConnectionDescriptor;
 import com.msp.chat.server.bean.Subscription;
-import com.msp.chat.server.bean.WebSocketMsgBean;
 import com.msp.chat.server.bean.events.*;
 import com.msp.chat.server.commons.utill.BrokerConfig;
 import com.msp.chat.server.commons.utill.DebugUtils;
@@ -18,10 +17,7 @@ import com.msp.chat.server.storage.redis.RedisStorageService;
 import com.msp.chat.server.storage.redis.RedisSubscribeStore;
 import com.msp.chat.server.storage.redis.bean.OffMsgBean;
 import com.msp.chat.server.storage.sqlite.SqliteSubscribeStore;
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.handler.codec.http.websocketx.BinaryWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 import net.sf.ehcache.Element;
 import org.apache.commons.io.FileUtils;
@@ -32,11 +28,9 @@ import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
-import java.nio.channels.FileChannel;
 import java.util.*;
 import java.util.List;
 
@@ -253,12 +247,6 @@ public class MqttMsgProcessor {
                         e.printStackTrace();
                     }
                 }
-
-                //PC Websocket에서 접속되어 있는지 확인 후 전송.
-                ChannelHandlerContext channelHandlerContext=WebsocketClientIdCtxManager.getInstance().getChannel(pubClientID);
-                if(channelHandlerContext!=null){
-                    channelHandlerContext.writeAndFlush(new TextWebSocketFrame(sendMsg));
-                }
                 return;
             }else if(chkSysMsg.equals(BrokerConfig.SYS_REQ_MSG_SENT_INFO)){
                 //TODO : 클라이언트가 메세지아이디 배열을 보내면 해당 메세지가 발송상태 카운트를 보내준다.
@@ -386,7 +374,7 @@ public class MqttMsgProcessor {
     }
 
     /**
-     * 발행자가 발행한 토픽을 브로커가 구독자에게 발송한다.
+     * 발행자가 발행한 토픽을 브로커가 각각의 구독자들에게 발송한다.
      * @param evt
      */
     private void publish2Subscribers(PublishEvent evt) {
@@ -394,8 +382,8 @@ public class MqttMsgProcessor {
         try {
             HashSet<String> clientIdSet = subscribeStore.getSubscribeClientID(evt.getTopic());
             if(clientIdSet!=null){
-                // TODO : 해당 Publish 원본 메세지를 얼마나 오랫동안 보관하여야 하는가? 삭제해야 한다면 어떤 방식으로 삭제해야 하는가? 고민...
-                // TODO : [처리방안 1] 수신확인 ACK가 다 들어온 메세지는 삭제 처리.
+                // [확인] 이곳에서 저장하는 Reids에 저장하는 Publish메세지는 <발송자=>브로커서버>에 보낸는 원본 메세지임. 삭제해야 한다면 어떤 방식으로 삭제해야 하는가? 고민...
+                // [처리방안 1] 모든 수신대상자가 모두 수신이 확인이 되었거나 OFF메세지 저장 시간이 만료되어 더 이상 메세지 수신확인ACK를 기다릴 필요가 없을 때 메세지 삭제 처리.
                 // 메세지 발행자의 원본메세지 정보를 로그파일로 저장.
                 if(evt.getQos()!= AbstractMessage.QOSType.MOST_ONE) {
                     if (LOGGER_PUBLISH.isInfoEnabled()) {
@@ -423,9 +411,9 @@ public class MqttMsgProcessor {
                         //구독자에게  발송처리
                         sendPublish(evt.getPubClientID(), revClientID, evt.getTopic(), AbstractMessage.QOSType.LEAST_ONE, message, false, evt.getMessageID());
                     }else{
-                        //TODO : 다른 브로커서버에 메세지발송 위임처리
+                        // 다른 브로커서버에 할당된 유저이므로 다른 브로커서버에 메세지발송 위임처리
                         try {
-                            //TODO : 메세지에 발송자아이디, 수신자아이디를 넣어서 메세지를 만든 후 발송한다.
+                            // 메세지에 발송자아이디, 수신자아이디를 넣어서 메세지를 만든 후 발송한다.
                             String pubClientID = evt.getPubClientID();
                             String subClientID = revClientID;
                             String clientIdInfo = pubClientID+"|"+subClientID;
@@ -452,7 +440,7 @@ public class MqttMsgProcessor {
                     }
                 }
             }else{
-                // TODO : 해당 토픽을 구독신청자가 하나도 없는경우. 처리방안 고민?(아무일도 안해도 될것 같음.)
+                // [확인] : 해당 토픽을 구독신청자가 하나도 없는경우. 처리방안 고민?(아무일도 안해도 될것 같음.)
                 LOGGER.error("###[MqttMsgProcessor processPublish] not exist subscriber.");
             }
         }catch (Exception e){
@@ -462,8 +450,6 @@ public class MqttMsgProcessor {
 
     // Topic를 구독 신청한 해당 클라이언트 찾아 메세지 전송
     private void sendPublish(String pubClientID, String subClientID, String topic, AbstractMessage.QOSType qos, ByteBuffer message, boolean retained, int messageID) {
-        //TODO: 파일 전송일 경우 처리 방안 구현
-        // 예제로 아래는 클라이언트가 파일을 보냈을 경우 원본이미지,썸네일이미지 생성 후 서버에 저장함. 발송대상자에게는 썸네일 발송.
         PublishMessage pubMessage = new PublishMessage();
         pubMessage.setRetainFlag(retained);
         pubMessage.setTopicName(topic);
@@ -505,10 +491,9 @@ public class MqttMsgProcessor {
                 ServerChannel channel = ChannelQueue.getInstance().getChannel(subClientID).getSession();
                 channel.write(pubMessage);
                 if (qos != AbstractMessage.QOSType.MOST_ONE) {
-                    // 발송한 메세지는 임시 발송정보 캐시에 등록한다(nio이기 때문 컨넥션맵에 있다고 해서 반드시 세션이 유지되고 있다고 볼수 없다.)
+                    //[확인]발송한 메세지는 임시 발송정보 캐시에 등록한다(nio이기 때문 컨넥션맵에 있다고 해서 반드시 세션이 유지되고 있다고 볼수 없다.)
                     // 따라서 ack가 왔을 때에만 발송완료로 판단하여 삭제한다. 만약 삭제가 되지 않은 메세지는 offlineMessage에 담아 재접속시 재전송하기 위해
                     PublishEvent newPublishEvt = new PublishEvent(topic, qos, message, retained, pubClientID, subClientID, messageID, channel);
-                    //Broker=>client로 발송은 수신자아이디를 넣어야 함.
                     CachePublishStore.getInstance().put(subClientID, messageID, newPublishEvt);
                 }
                 if (LOGGER.isDebugEnabled()) {

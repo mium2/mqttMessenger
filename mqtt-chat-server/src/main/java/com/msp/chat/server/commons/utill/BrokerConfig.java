@@ -57,6 +57,8 @@ public class BrokerConfig {
     public static String THUMBNAIL_WIDTH="thumbnail_width";
     public static String THUMBNAIL_HEIGHT="thumbnail_height";
 
+    public static String ORG_PUB_MSG_CLEAN_TIME="org_pub_msg_clean_time";
+
     public static void Load(String filename) throws ConfigurationException {
         //기본 delimiter 가 , 여서 하는 설정
         XMLConfiguration.setDefaultListDelimiter((char) (0));
@@ -98,6 +100,8 @@ public class BrokerConfig {
         properties.put(DOWNLOAD_HOSTURL, xml.getString(DOWNLOAD_HOSTURL,""));
         properties.put(THUMBNAIL_WIDTH, xml.getString(THUMBNAIL_WIDTH,"100"));
         properties.put(THUMBNAIL_HEIGHT, xml.getString(THUMBNAIL_HEIGHT,"80"));
+
+        properties.put(ORG_PUB_MSG_CLEAN_TIME, xml.getString(ORG_PUB_MSG_CLEAN_TIME,"3"));
     }
 
     public static int getIntProperty(String name) {

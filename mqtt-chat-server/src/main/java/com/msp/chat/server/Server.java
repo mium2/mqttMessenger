@@ -94,6 +94,9 @@ public class Server {
             // 웹소켓 메세지처리 매니저 구동
             WebSocketMsgManager.getInstance().startWorkers();
 
+            ExecutorService threadPool = Executors.newFixedThreadPool(1);
+            threadPool.execute(new CheckCacheExpireWorker());
+
         }catch (Exception e){
             e.printStackTrace();
             System.exit(-1);
@@ -114,10 +117,6 @@ public class Server {
 
         //브로커 클라이언트 구동
         server.brokerClientStart();
-
-        ExecutorService threadPool = Executors.newFixedThreadPool(1);
-        threadPool.execute(new CheckCacheExpireWorker());
-
 
         Runtime.getRuntime().addShutdownHook(new Thread() {
             @Override

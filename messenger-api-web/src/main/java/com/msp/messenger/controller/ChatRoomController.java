@@ -7,6 +7,7 @@ import com.msp.messenger.common.Constants;
 import com.msp.messenger.service.push.PushHttpCallService;
 import com.msp.messenger.service.rdb.RdbUserService;
 import com.msp.messenger.service.redis.RedisUserService;
+import com.msp.messenger.util.HexUtil;
 import com.msp.messenger.util.JsonObjectConverter;
 import org.apache.commons.codec.binary.Hex;
 import org.slf4j.Logger;
@@ -262,16 +263,18 @@ public class ChatRoomController {
         for(Object userIDObj : inviteUserIDTreeSet){
             sb.append(userIDObj.toString());
         }
-        int sumByte = 0;
-        char[] chatRoomChars = Hex.encodeHex(sb.toString().getBytes());
-        String charRoomString = new String(chatRoomChars);
+//        int sumByte = 0;
+//        System.out.println("MD5값" + HexUtil.getMD5(sb.toString()));
+//        System.out.println("SHA128" + HexUtil.getSHA1(sb.toString()));
+//        char[] chatRoomChars = Hex.encodeHex(sb.toString().getBytes());
+        String charRoomString =HexUtil.getMD5(sb.toString());
 
-
-        byte[] cuidByteArr = charRoomString.getBytes();
-        for (int i = 0; i < cuidByteArr.length; i++) {
-            int aaa = cuidByteArr[i] << i;
-            sumByte += aaa;
-        }
-        return sumByte+"";
+//        byte[] cuidByteArr = charRoomString.getBytes();
+//        for (int i = 0; i < cuidByteArr.length; i++) {
+//            int aaa = cuidByteArr[i];
+//            System.out.println("#### aaa :"+aaa);
+//            sumByte += aaa;
+//        }
+        return charRoomString;
     }
 }

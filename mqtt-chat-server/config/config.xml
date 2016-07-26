@@ -45,7 +45,7 @@
     <!-- 메시지 큐 사이즈 제한 기본값 : 0  사용안함 -->
     <queue_size>0</queue_size>
 
-    <!-- 사용자당 메시지 보관 갯수 -->
+    <!-- 사용자당 오프메시지 보관 갯수 -->
     <cache_user_msg_count>100</cache_user_msg_count>
 
     <!-- 오프라인 만료 체크 주기 분(minute)-->
@@ -62,4 +62,6 @@
     <download_hosturl>http://localhost:18080/download_file/</download_hosturl>
     <thumbnail_width>100</thumbnail_width>
     <thumbnail_height>100</thumbnail_height>
+
+    <org_pub_msg_clean_time>11</org_pub_msg_clean_time>
 </configuration>

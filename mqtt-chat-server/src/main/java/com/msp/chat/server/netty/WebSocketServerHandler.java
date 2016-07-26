@@ -4,6 +4,7 @@ import com.msp.chat.core.mqtt.Constants;
 import com.msp.chat.server.bean.WebSocketMsgBean;
 import com.msp.chat.server.worker.WebSocketMsgManager;
 import com.msp.chat.server.worker.WebsocketClientIdCtxManager;
+import com.msp.chat.server.worker.WebsocketCtxServerHandleManager;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFuture;
@@ -21,7 +22,6 @@ import io.netty.util.CharsetUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.UnsupportedEncodingException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -35,14 +35,12 @@ public class WebSocketServerHandler extends SimpleChannelInboundHandler<Object> 
     private static final Logger LOGGER = LoggerFactory.getLogger("server");
     private static final String WEBSOCKET_PATH = "/webchat";
     private WebSocketServerHandshaker handshaker;
-    private final Map<ChannelHandlerContext, NettyChannel> webSocketchannelMapper = new HashMap<ChannelHandlerContext, NettyChannel>();
+
 
     @Override
     public void messageReceived(ChannelHandlerContext ctx, Object msg) {
-        synchronized(webSocketchannelMapper) {
-            if (!webSocketchannelMapper.containsKey(ctx)) {
-                webSocketchannelMapper.put(ctx, new NettyChannel(ctx));
-            }
+        if (!WebsocketCtxServerHandleManager.getInstance().isContainsKey(ctx)) {
+            WebsocketCtxServerHandleManager.getInstance().putNettyChannel(ctx);
         }
         if (msg instanceof FullHttpRequest) {
             handleHttpRequest(ctx, (FullHttpRequest) msg);
@@ -73,7 +71,6 @@ public class WebSocketServerHandler extends SimpleChannelInboundHandler<Object> 
         if ("/".equals(req.uri())) {
 //            ByteBuf content = WebSocketServerIndexPage.getContent(getWebSocketLocation(req));
 //            FullHttpResponse res = new DefaultFullHttpResponse(HTTP_1_1, OK, content);
-//
 //            res.headers().set(CONTENT_TYPE, "text/html; charset=UTF-8");
 //            HttpHeaderUtil.setContentLength(res, content.readableBytes());
             FullHttpResponse res = new DefaultFullHttpResponse(HTTP_1_1, NOT_FOUND);
@@ -121,24 +118,71 @@ public class WebSocketServerHandler extends SimpleChannelInboundHandler<Object> 
                 if(LOGGER.isDebugEnabled()){
                     LOGGER.debug("###[WebSocketServerHandler handleWebSocketFrame] command:{}",command);
                 }
-                WebSocketMsgBean webSocketMsgBean = new WebSocketMsgBean(webSocketchannelMapper.get(ctx),command,requestArr);
+                WebSocketMsgBean webSocketMsgBean = new WebSocketMsgBean(WebsocketCtxServerHandleManager.getInstance().getNettyChannel(ctx),command,requestArr);
                 WebSocketMsgManager.getInstance().putWebSocketMsgBean(webSocketMsgBean);
             }
             return;
         }
 
         if (frame instanceof BinaryWebSocketFrame) {
-            WebSocketFrame webSocketFrame = frame.retain();
-            ByteBuf byteBuf = webSocketFrame.content();
-            byte[] bytes = new byte[byteBuf.readableBytes()];
-            byteBuf.readBytes(bytes);
-
             try {
-                System.out.println("### 받은 바이너리 메세지:"+ new String(bytes,"utf-8"));
-            } catch (UnsupportedEncodingException e) {
+                WebSocketFrame webSocketFrame = frame.retain();
+                ByteBuf byteBuf = webSocketFrame.content();
+                String[] reqArr = new String[5];
+                //command 셋팅
+                byte[] commandBytes = new byte[10];
+                byteBuf.readBytes(commandBytes);
+                reqArr[0] = new String(commandBytes,"utf-8");
+
+                //클라이언트 아이디 셋팅
+                String clientID = WebsocketCtxServerHandleManager.getInstance().getNettyChannel(ctx).getAttribute(Constants.ATTR_CLIENTID).toString();
+                reqArr[1] = clientID;
+
+                // 메세지아이디 셋팅
+                byte[] messageIdBytes = new byte[5];
+                byteBuf.readBytes(messageIdBytes);
+                reqArr[2] = new String(messageIdBytes,"utf-8").trim();
+
+                // 토픽길이 가져오기
+                byte[] topicLenBytes = new byte[4];
+                byteBuf.readBytes(topicLenBytes);
+                int topicLen = Integer.parseInt(new String(topicLenBytes,"utf-8").trim());
+
+                // 토픽셋팅
+                byte[] topicBytes = new byte[topicLen];
+                byteBuf.readBytes(topicBytes);
+                reqArr[3] = new String(topicBytes,"utf-8");
+
+                // 파일명길이 가져오기
+                byte[] fileNameLenBytes = new byte[4];
+                byteBuf.readBytes(fileNameLenBytes);
+                String strFileNameLen = new String(fileNameLenBytes).trim();
+                int fileNameLen = Integer.parseInt(strFileNameLen);
+
+                // 파일명 가져오기
+                byte[] fileNameBytes = new byte[fileNameLen];
+                byteBuf.readBytes(fileNameBytes);
+
+                byte[] bytes = new byte[byteBuf.readableBytes()];
+                byteBuf.readBytes(bytes);
+
+                WebSocketMsgBean webSocketMsgBean = new WebSocketMsgBean(WebsocketCtxServerHandleManager.getInstance().getNettyChannel(ctx),new String(commandBytes,"utf-8"),reqArr);
+                webSocketMsgBean.setFilename(new String(fileNameBytes,"utf-8"));
+                webSocketMsgBean.setAttachFile(bytes);
+                WebSocketMsgManager.getInstance().putWebSocketMsgBean(webSocketMsgBean);
+            }catch (Exception e){
                 e.printStackTrace();
             }
-            ctx.write(frame.retain());
+
+//            try {
+//                String rev_fileName = System.currentTimeMillis()+"_test.png";
+//                String orgFileFullSrc = "/Users/mium2/project/git_repository/mqttMessenger/messenger-api-web/target/messenger-api-web-1.0.0/download_file/"+rev_fileName;
+//                FileOutputStream fot = new FileOutputStream(orgFileFullSrc);
+//                fot.write(bytes);
+//                fot.close();
+//            } catch (Exception e) {
+//                e.printStackTrace();
+//            }
             return;
         }
     }
@@ -174,18 +218,30 @@ public class WebSocketServerHandler extends SimpleChannelInboundHandler<Object> 
         if(LOGGER.isDebugEnabled()) {
             LOGGER.debug("###[WebSocketServerHandler channelInactive]");
         }
-        NettyChannel channel = webSocketchannelMapper.get(ctx);
+        NettyChannel channel = WebsocketCtxServerHandleManager.getInstance().getNettyChannel(ctx);
         if(ctx!=null) {
             ctx.close(/*false*/);
             // 현재 접속중인 clientID 관리맵에서 삭제처리
             String clientID = (String) channel.getAttribute(Constants.ATTR_CLIENTID);
             if(clientID!=null) {
-                ChannelHandlerContext channelHandlerContext = WebsocketClientIdCtxManager.getInstance().removeChannel(clientID);
-                channelHandlerContext = null;
+                boolean doubleLogin = false;
+                Object obj = channel.getAttribute(Constants.DOUBLE_LOGIN);
+                if(obj!=null){
+                    try {
+                        doubleLogin = (Boolean)obj;
+                        if(LOGGER.isInfoEnabled()) {
+                            LOGGER.info("###[WebSocketServerHandler channelInactive] channel.getAttribute(Constants.DOUBLE_LOGIN) : {}",channel.getAttribute(Constants.DOUBLE_LOGIN));
+                        }
+                    }catch (Exception e){
+                        e.printStackTrace();
+                    }
+                }
+                // 중복로그인이 아니므로 아이디로 맵핑된 ChannelHandlerContext는 지운다. 중복로그인일 경우는 지우면 안된다. 새로운 ctx롤 덮어씌워 졌기 때문에..
+                if(!doubleLogin) {
+                    WebsocketClientIdCtxManager.getInstance().removeChannel(clientID);
+                }
             }
-            synchronized (webSocketchannelMapper) {
-                webSocketchannelMapper.remove(ctx);
-            }
+            WebsocketCtxServerHandleManager.getInstance().removeChannel(ctx);
             if(LOGGER.isTraceEnabled()){
                 LOGGER.trace("###[WebSocketServerHandler channelInactive] Connected clientID size():{}", WebsocketClientIdCtxManager.getInstance().getSize());
             }

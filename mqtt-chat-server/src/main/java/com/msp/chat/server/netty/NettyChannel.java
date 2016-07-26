@@ -29,7 +29,7 @@ public class NettyChannel implements ServerChannel {
     private static final AttributeKey<Object> ATTR_KEY_CLIENTID = AttributeKey.valueOf(NettyChannel.class, Constants.ATTR_CLIENTID);
     private static final AttributeKey<Object> ATTR_KEY_DOUBLE_LOGIN = AttributeKey.valueOf(NettyChannel.class, Constants.DOUBLE_LOGIN);
 
-    NettyChannel(ChannelHandlerContext ctx) {
+    public NettyChannel(ChannelHandlerContext ctx) {
         m_channel = ctx;
         m_attributesKeys.put(Constants.KEEP_ALIVE, ATTR_KEY_KEEPALIVE);
         m_attributesKeys.put(Constants.CLEAN_SESSION, ATTR_KEY_CLEANSESSION);

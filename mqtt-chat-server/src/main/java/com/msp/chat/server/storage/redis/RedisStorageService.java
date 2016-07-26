@@ -6,13 +6,13 @@ import com.msp.chat.client.BrokerClientManager;
 import com.msp.chat.core.mqtt.proto.messages.AbstractMessage;
 import com.msp.chat.core.mqtt.proto.messages.PublishMessage;
 import com.msp.chat.server.bean.ConnectionDescriptor;
+import com.msp.chat.server.bean.WebSocketMsgBean;
 import com.msp.chat.server.bean.events.PublishEvent;
+import com.msp.chat.server.netty.NettyChannel;
 import com.msp.chat.server.storage.redis.bean.OffMsgBean;
 import com.msp.chat.server.commons.utill.BrokerConfig;
 import com.msp.chat.server.storage.redis.bean.PubMsgBean;
-import com.msp.chat.server.worker.ChannelQueue;
-import com.msp.chat.server.worker.MqttMsgWorkerManager;
-import com.msp.chat.server.worker.WebsocketClientIdCtxManager;
+import com.msp.chat.server.worker.*;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 import org.slf4j.Logger;
@@ -46,6 +46,8 @@ public class RedisStorageService {
     public String OFFMSG_EXPIRE_KEYTABLE = null;
     public int CACHE_USER_MSG_COUNT = 0;
     public long EXPIRE_MILISECOND = 0;
+
+    public static String ORG_PUBLISH_LAST_CLEAN_DAY = "";
 
     @Autowired(required = true)
     private RedisTemplate masterRedisTemplate;
@@ -84,7 +86,7 @@ public class RedisStorageService {
         pubMsgBean.setSendate(System.currentTimeMillis()+"");
 
         //채팅방별로 설정한 갯수만큼 메세지를 보관한다.
-        long listSize = masterRedisTemplate.opsForList().rightPush(REDIS_ROOMID_MSG + publishEvent.getTopic(), orgPublishKey + "|" + pubMsgBean.getPub_message()+"|"+pubMsgBean.getSendate());
+        long listSize = masterRedisTemplate.opsForList().rightPush(REDIS_ROOMID_MSG + publishEvent.getTopic(), orgPublishKey + "|" + pubMsgBean.getPub_message() + "|" + pubMsgBean.getSendate());
         if(logger.isTraceEnabled()){
             logger.trace("## [RedisStorageService putPubMsg] room msg size==>rootID:{}   cnt:{}",publishEvent.getTopic(),listSize);
         }
@@ -114,7 +116,7 @@ public class RedisStorageService {
         }
         // TODO : 고민1 : 마지막만 보낼까? 그냥 들어 올 때 마다 보낼까?
         // 발송자에게 수신ACK 정보를 통지해 주기 위해..
-        Object stringObj = slaveRedisTemplate.opsForHash().get(REDIS_PUBMSG,orgPublishKey);
+        Object stringObj = slaveRedisTemplate.opsForHash().get(REDIS_PUBMSG, orgPublishKey);
         if(ackCnt<=0) {
             masterRedisTemplate.opsForHash().delete(REDIS_PUBACK_CNT, orgPublishKey);
             masterRedisTemplate.opsForHash().delete(REDIS_PUBMSG, orgPublishKey);
@@ -149,10 +151,26 @@ public class RedisStorageService {
 
             // 발송대상자가 자기자신이 관리하는 대상자인지 확인 아닐 경우 다른 브로커에게 전달.
             if(brokerID.equals(BrokerConfig.getProperty(BrokerConfig.SERVER_ID))){
-                //현재 발송자가  서버에 접속되어 있는지 확인 후 있을 때에만 미수신 정보 보내는 로직을 태운다.
+
+                //현재 MQTT client 발송자가 브로커서버에 접속되어 있는지 확인 후 있을 때에만 미수신카운트 정보 보내는 로직을 태운다.
                 ConnectionDescriptor mqttChannel = ChannelQueue.getInstance().getChannel(pubClientID);
                 if(mqttChannel!=null) {
                     MqttMsgWorkerManager.getInstance().handleProtocolMessage(mqttChannel.getSession(), publishMessage);
+                }
+
+                //PC Websocket에서 접속되어 있는지 확인 후 전송.
+                ChannelHandlerContext channelHandlerContext= WebsocketClientIdCtxManager.getInstance().getChannel(pubClientID);
+                NettyChannel webSocketNettyChannel = WebsocketCtxServerHandleManager.getInstance().getNettyChannel(channelHandlerContext);
+                if(webSocketNettyChannel!=null){
+                    // requestArr[0]:command, requestArr[1]:connectID, requestArr[2]:messageId, requestArr[3]:topic, requestArr[4]:message
+                    String[] requestArr = new String[5];
+                    requestArr[0]=BrokerConfig.SYS_MSG_SENT_COMPLETE;
+                    requestArr[1]=pubClientID;
+                    requestArr[2]=messageID+"";
+                    requestArr[3]=pubMsgBean.getTopic();
+                    requestArr[4]=ackCnt+"";
+                    WebSocketMsgBean webSocketMsgBean = new WebSocketMsgBean(webSocketNettyChannel,BrokerConfig.SYS_MSG_SENT_COMPLETE,requestArr);
+                    WebSocketMsgManager.getInstance().putWebSocketMsgBean(webSocketMsgBean);
                 }
             }else{
                 // 발송자가 접속해 있는 다른 브로커서버에 발송위임
@@ -375,7 +393,83 @@ public class RedisStorageService {
         }
     }
 
+    /**
+     * 단말이 브로커에 발송 요청한 publish메세지는 구독자가 다 받거나 off메세지 저장시간이 만료되면 다 지워져야 하나.. 서버를 리부트 하면 off메세지에 저장이 다 날아가 오래된 메세지임에도 불구하고
+     * 더미데이타로 계속 쌓여 메모리를 까먹으므로 설정된 새벽시간에 메세지 사이즈를 체크하여 정리해줄 필요가 있음.
+     */
+    public void cleanOrgPublishMsg(){
+        long chkMilSecond = BrokerConfig.getIntProperty(BrokerConfig.OFFMSG_EXPIRE_SECOND)*1000;
+        Calendar c = Calendar.getInstance(); //객체 생성 및 현재 일시분초...셋팅
+        StringBuffer sb = new StringBuffer();
+        sb.append(c.get(Calendar.YEAR));
+        sb.append(c.get(Calendar.MONTH)+1);
+        sb.append(c.get(Calendar.DATE));
+
+        // 하루에 한번만 청소하기 위해..
+        if(!sb.toString().equals(ORG_PUBLISH_LAST_CLEAN_DAY)){
+            try {
+                int MULTIKEY_SIZE = 5000;
+                Set<Object> allPublishkeys = slaveRedisTemplate.opsForHash().keys(REDIS_PUBMSG);
+                Collection<Object> multiPushKey = new ArrayList<Object>();
+                int multiPushKeySize = 0;
+                for (Object publishKey : allPublishkeys) {
+                    multiPushKey.add(publishKey);
+                    multiPushKeySize++;
+                    if (multiPushKeySize % MULTIKEY_SIZE == 0) {
+                        // 속도를 위해 모아서 multikey로 보내 리스트를 받는다.
+                        List<Object> orgPublishList = slaveRedisTemplate.opsForHash().multiGet(REDIS_PUBMSG, multiPushKey);
+                        for (Object publishMsgObj : orgPublishList) {
+                            if (publishMsgObj != null) {
+                                PubMsgBean pubMsgBean = gson.fromJson(publishMsgObj.toString(), PubMsgBean.class);
+                                long sendDateMilSecond = Long.parseLong(pubMsgBean.getSendate());
+                                if((System.currentTimeMillis()-chkMilSecond)>sendDateMilSecond){
+                                    // PUBMSG, PUB_ACK에서 지워야함
+                                    String cleanKey = makePublishKey2(pubMsgBean.getPubClientID(), pubMsgBean.getMsgID());
+                                    masterRedisTemplate.opsForHash().delete(REDIS_PUBMSG,cleanKey);
+                                    masterRedisTemplate.opsForHash().delete(REDIS_PUBACK_CNT,cleanKey);
+                                    if(logger.isDebugEnabled()){
+                                        logger.debug("##[RedisStorageService cleanOrgPublishMsg] Clean Key : {}",cleanKey);
+                                    }
+                                }
+                            }
+                        }
+                        multiPushKey.clear();
+                    }
+                }
+                // 나머지 처리
+                if (multiPushKey.size() > 0) {
+                    // 속도를 위해 모아서 multikey로 보내 푸쉬발송유저정보 리스트를 받는다.
+                    List<Object> orgPublishList = masterRedisTemplate.opsForHash().multiGet(REDIS_PUBMSG, multiPushKey);
+                    for (Object publishMsgObj : orgPublishList) {
+                        if (publishMsgObj != null) {
+                            PubMsgBean pubMsgBean = gson.fromJson(publishMsgObj.toString(), PubMsgBean.class);
+                            long sendDateMilSecond = Long.parseLong(pubMsgBean.getSendate());
+                            if((System.currentTimeMillis()-chkMilSecond)>sendDateMilSecond){
+                                // PUBMSG, PUB_ACK에서 지워야함
+                                String cleanKey = makePublishKey2(pubMsgBean.getPubClientID(), pubMsgBean.getMsgID());
+                                masterRedisTemplate.opsForHash().delete(REDIS_PUBMSG,cleanKey);
+                                masterRedisTemplate.opsForHash().delete(REDIS_PUBACK_CNT,cleanKey);
+                                if(logger.isDebugEnabled()){
+                                    logger.debug("##[RedisStorageService cleanOrgPublishMsg] Clean Key : {}",cleanKey);
+                                }
+                            }
+                        }
+                    }
+                    multiPushKey.clear();
+                }
+                // 청소할 날짜 셋팅
+                ORG_PUBLISH_LAST_CLEAN_DAY = sb.toString();
+            }catch (Exception e){
+                e.printStackTrace();
+            }
+        }
+    }
+
     private String makePublishKey(String clientID, int messageID){
         return String.format("%s|%d", clientID, messageID);
+    }
+
+    private String makePublishKey2(String clientID, String messageID){
+        return String.format("%s|%s", clientID, messageID);
     }
 }

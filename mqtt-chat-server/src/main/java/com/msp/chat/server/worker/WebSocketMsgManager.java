@@ -10,6 +10,9 @@ import com.msp.chat.server.storage.redis.RedisStorageService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.HashSet;
+import java.util.Set;
+
 /**
  * Created by Y.B.H(mium2) on 16. 7. 19..
  */
@@ -31,7 +34,7 @@ public class WebSocketMsgManager {
     private String OFFMSG_STORE_KIND = "1";  // 0:ehcache, 1: redis
     private final String SERVER_ID;
     private final String APPID;
-
+    private Set<String> CHKIMGSET;
 
     public static WebSocketMsgManager getInstance(){
         if(instance==null){
@@ -49,6 +52,13 @@ public class WebSocketMsgManager {
         this.tail = 0;
         this.count = 0;
         webSocketWorkerThreads = new WebSocketWorkerThread[threadsCnt];
+        CHKIMGSET = new HashSet<String>();
+        CHKIMGSET.add("jpg");
+        CHKIMGSET.add("jpeg");
+        CHKIMGSET.add("gif");
+        CHKIMGSET.add("bmp");
+        CHKIMGSET.add("png");
+        CHKIMGSET.add("tif");
     }
 
     public void startWorkers() throws Exception{
@@ -113,6 +123,15 @@ public class WebSocketMsgManager {
 
     public String getAPPID() {
         return APPID;
+    }
+
+
+    public Set<String> getCHKIMGSET() {
+        return CHKIMGSET;
+    }
+
+    public void setCHKIMGSET(Set<String> CHKIMGSET) {
+        this.CHKIMGSET = CHKIMGSET;
     }
 
     public void processStop() {
