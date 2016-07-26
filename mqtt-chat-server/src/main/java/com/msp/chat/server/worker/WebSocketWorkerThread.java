@@ -1,7 +1,6 @@
 package com.msp.chat.server.worker;
 
 import com.msp.chat.core.mqtt.Constants;
-import com.msp.chat.server.bean.ConnectionDescriptor;
 import com.msp.chat.server.bean.WebSocketMsgBean;
 import com.msp.chat.server.bean.events.PublishEvent;
 import com.msp.chat.server.commons.utill.BrokerConfig;
@@ -16,7 +15,6 @@ import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileOutputStream;
-import java.nio.ByteBuffer;
 
 /**
  * Created by Y.B.H(mium2) on 16. 7. 19..
