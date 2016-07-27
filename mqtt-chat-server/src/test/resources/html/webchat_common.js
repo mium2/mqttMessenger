@@ -5,6 +5,8 @@
  * Takes a String and writes it into an array as UTF8 encoded bytes.
  * @private
  */
+
+
 function stringToUTF8(input, output, start) {
     var pos = start;
     for (var i = 0; i<input.length; i++) {

@@ -220,22 +220,45 @@ public class RedisUserService {
         masterRedisTemplate.opsForHash().delete(REDIS_CHATUSER_TABLE, userInfoBean.getUSERID());
         //2. HP 삭제
         masterRedisTemplate.opsForHash().delete(REDIS_HP_TABLE, userInfoBean.getHP_NUM());
+        //3. ROOMID_SUBSCRIBE 삭제,  ROOMINFO 해당 유저정보 삭제(?) 이건 삭제 하는게 맞는지 고민
+        Object roomIdSetObj = slaveRedisTemplate.opsForHash().get(REDIS_USERID_ROOMIDS_TABLE,userInfoBean.getUSERID());
+        if(roomIdSetObj!=null){
+            Set<String> chatRoomIdSet = JsonObjectConverter.getObjectFromJSON(roomIdSetObj.toString(), HashSet.class);
+            for(String chatRoomId : chatRoomIdSet){
+                //ROOMID_SUBSCRIBE 키테이블에서 해당 유저 정보 삭제
+                Object subscribersObj = slaveRedisTemplate.opsForHash().get(REDIS_ROOMID_SUBSCRUBE,chatRoomId);
+                if(subscribersObj!=null) {
+                    HashSet<String> subscribersSet = JsonObjectConverter.getObjectFromJSON(subscribersObj.toString(), HashSet.class);
+                    for (String subscriber : subscribersSet) {
+                        // "유저아이디|할당받은브로커아이디"로 구성되어있음.
+                        if(subscriber.startsWith(userInfoBean.getUSERID()+"|")) {
+                            subscribersSet.remove(subscriber);
+                            break;
+                        }
+                    }
+                    masterRedisTemplate.opsForHash().put(REDIS_ROOMID_SUBSCRUBE, chatRoomId, JsonObjectConverter.getAsJSON(subscribersSet));
+                }
+                //ROOMINFO 해당 유저정보 삭제(?) 이건 삭제 하는게 맞는지 고민
+                removeRoomInfoFromUserID(chatRoomId,userInfoBean.getUSERID());
+            }
+        }
+
+        //4. USER_BROKERID 키테이블에서 삭제
+        masterRedisTemplate.opsForHash().delete(REDIS_USER_BROKERID, userInfoBean.getUSERID());
+
+        //5. USERID_ROOMIDS 삭제
+        masterRedisTemplate.opsForHash().delete(REDIS_USERID_ROOMIDS_TABLE, userInfoBean.getUSERID());
     }
 
     public String isExistChatRoomTopic(MakeRoomBean makeRoomBean, int memberCnt){
         String returnRoomID = makeRoomBean.getROOMID();
-        // TODO : 같은 멤버로 존재는 하나 방을 나간 사용자가 있다면 방아이디를 새롭게 만들어야 할 필요가 있음.
+        // 같은 멤버로 존재는 하나 방을 나간 사용자가 있다면 방아이디를 똑같이 하고 나간 회원을 다시 넣기위해 R_를 붙여서 리턴.
         Object obj = slaveRedisTemplate.opsForHash().get(REDIS_ROOMINFO_TABLE,makeRoomBean.getROOMID());
         if(obj!=null){
             ChatRoomInfoBean chatRoomInfoBean = JsonObjectConverter.getObjectFromJSON(obj.toString(),ChatRoomInfoBean.class);
             if(chatRoomInfoBean.getUSERIDS().size()!=memberCnt){
-                // 방을 나간 회원이 있으므로 신규 방아이디를 새로운 아이디로 생성하고 만들어줌.
-                String nowMiliTimeStr = System.currentTimeMillis()+"";
-                long firstTime = Long.parseLong(nowMiliTimeStr.substring(0,10));
-                long secondTime = Long.parseLong(nowMiliTimeStr.substring(10));
-                long orgRoomID = Long.parseLong(makeRoomBean.getROOMID());
-                long sumRoomID = firstTime+secondTime+orgRoomID;
-                returnRoomID = "R"+sumRoomID;
+                // 방을 나간 회원이 있으므로 나간 회원을 다시 복귀 시켜주기 위해 R_로표시함.
+                returnRoomID = "R_"+returnRoomID;
             }
         }else{
             returnRoomID = null;
@@ -274,6 +297,65 @@ public class RedisUserService {
             chatRoomIdSet.add(makeRoomBean.getROOMID());
             masterRedisTemplate.opsForHash().put(REDIS_USERID_ROOMIDS_TABLE,userID,JsonObjectConverter.getAsJSON(chatRoomIdSet));
         }
+    }
+
+    public Set<String> reMakeChatRoom(MakeRoomBean makeRoomBean,List<Object> userIDs,List<String> userIDs_BrokerIDs, List<Object> hpNums, TreeSet<Object> inviteUserIDTreeSet) throws Exception{
+        // REDIS_ROOMINFO_TABLE, REDIS_ROOMID_SUBSCRUBE, REDIS_USERID_ROOMIDS_TABLE ==> 이 3개의 키테이블 삭제 후 다시 저장
+        //현재 채팅방에 등록되어 있는 유저정보를 가져온다.
+        Set<String> reEntryUsers = new HashSet<String>();
+        String chkOrgRoomID = makeRoomBean.getROOMID().substring(2); //"R_ 제거
+        makeRoomBean.setROOMID(chkOrgRoomID);
+        Object obj = slaveRedisTemplate.opsForHash().get(REDIS_ROOMINFO_TABLE,chkOrgRoomID);
+        if(obj!=null){
+            ChatRoomInfoBean chatRoomInfoBean = JsonObjectConverter.getObjectFromJSON(obj.toString(),ChatRoomInfoBean.class);
+            Set<Object> checkSet = new HashSet<Object>();
+            List<Object> nowEntryuserIDs = chatRoomInfoBean.getUSERIDS();
+            for(Object userObj : nowEntryuserIDs){
+                checkSet.add(userObj);
+            }
+            for(Object makeUserIdObj : userIDs){
+                if(!checkSet.contains(makeUserIdObj)){
+                    reEntryUsers.add(makeUserIdObj.toString());
+                }
+            }
+
+            // 채팅방 정보를 지움.
+            masterRedisTemplate.opsForHash().delete(REDIS_ROOMINFO_TABLE,makeRoomBean.getROOMID());
+            // 채팅방 구독자 정보를 지움.
+            masterRedisTemplate.opsForHash().delete(REDIS_ROOMID_SUBSCRUBE,makeRoomBean.getROOMID());
+
+            // 채팅방, 채팅방 구독자 정보 다시 만듬.
+            // REDIS 키테이블에 채팅방 정보 저장
+            ChatRoomInfoBean reChatRoomInfoBean = new ChatRoomInfoBean();
+            reChatRoomInfoBean.setAPPID(makeRoomBean.getAPPID());
+            reChatRoomInfoBean.setROOMID(makeRoomBean.getROOMID());
+            reChatRoomInfoBean.setROOM_OWNER(makeRoomBean.getUSERID());
+            reChatRoomInfoBean.setUSERIDS(userIDs);
+            reChatRoomInfoBean.setHPNUMS(hpNums);
+
+            // 현재날짜 구하기
+            Date date = new Date();
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-mm-dd HH:mm:ss");
+            String nowDate = sdf.format(date);
+            reChatRoomInfoBean.setCREATED_DATE(nowDate);
+
+            String jsonChatRoomInfo = JsonObjectConverter.getAsJSON(reChatRoomInfoBean);
+            masterRedisTemplate.opsForHash().put(REDIS_ROOMINFO_TABLE,makeRoomBean.getROOMID(),jsonChatRoomInfo);
+            // 대화방아이디:등록유저아이디들...
+            masterRedisTemplate.opsForHash().put(REDIS_ROOMID_SUBSCRUBE,makeRoomBean.getROOMID(),JsonObjectConverter.getAsJSON(userIDs_BrokerIDs));
+
+            // 채팅방에 재초대된 유저아이디들만 유저아이디에  추가된 대화방을 등록한다.
+            for(String userId : reEntryUsers) {
+                Object orgUserChatroomObj = slaveRedisTemplate.opsForHash().get(REDIS_USERID_ROOMIDS_TABLE, userId);
+                Set<String> chatRoomIdSet = new HashSet<String>();
+                if(orgUserChatroomObj!=null){
+                    chatRoomIdSet = JsonObjectConverter.getObjectFromJSON(orgUserChatroomObj.toString(), HashSet.class);
+                }
+                chatRoomIdSet.add(makeRoomBean.getROOMID());
+                masterRedisTemplate.opsForHash().put(REDIS_USERID_ROOMIDS_TABLE,userId,JsonObjectConverter.getAsJSON(chatRoomIdSet));
+            }
+        }
+        return reEntryUsers;
     }
 
     public List<ChatRoomInfoBean> getChatRoomList(String appid, String userid){
@@ -348,28 +430,8 @@ public class RedisUserService {
         // 1.챗팅방 정보에서 유저아이디리스트  해당유저삭제, 핸폰리스트에서 핸드폰번호삭제 처리. 2.유저아이디_챗팅룸아이디 리스트에서 해당 챗팅룸 아이디 삭제. 3.챗팅방아이디에 유저아이디 리스트에서 해당 아이디 삭제처리
         // STEP1 : 챗팅방정보에서 삭제.
         // 만약, 한명만 남는 경우는 어떻게 처리 해야 되나? 채팅방을 눌렀을때 서버로 부터 상세정보를 받고 그때 대화상대가 없다는 표시를 하도록 유도한다.
-        Object chatRoomJsonObj = slaveRedisTemplate.opsForHash().get(REDIS_ROOMINFO_TABLE,roomid);
-        if(chatRoomJsonObj!=null){
-            ChatRoomInfoBean chatRoomInfoBean = JsonObjectConverter.getObjectFromJSON(chatRoomJsonObj.toString(),ChatRoomInfoBean.class);
-            List<Object> userids = chatRoomInfoBean.getUSERIDS();
-            int removeIndex = -1;
-            for(int i=0; i<userids.size(); i++){
-                if(userids.get(i).toString().equals(userid)){
-                    userids.remove(i);
-                    removeIndex = i;
-                    break;
-                }
-            }
-            List<Object> hpNums = chatRoomInfoBean.getHPNUMS();
-            // 채팅방에서 유저가 삭제된경우
-            if(removeIndex>-1){
-                hpNums.remove(removeIndex);
-                // 이곳에 한 이유는 성능을 위해 유저아이디가 삭제된 경우에만 재 저장로직을 태움.
-                chatRoomInfoBean.setUSERIDS(userids);
-                chatRoomInfoBean.setHPNUMS(hpNums);
-                masterRedisTemplate.opsForHash().put(REDIS_ROOMINFO_TABLE,roomid,JsonObjectConverter.getAsJSON(chatRoomInfoBean));
-            }
-        }
+        removeRoomInfoFromUserID(roomid,userid);
+
         // STEP 2 : 채팅방아이디 구독자정보 리스트 키테이블에서 해당 유저 삭제
         Object subscribeObj = slaveRedisTemplate.opsForHash().get(REDIS_ROOMID_SUBSCRUBE,roomid);
         if(subscribeObj!=null){
@@ -401,5 +463,34 @@ public class RedisUserService {
 
     public Object getUseridFromHpNum(String appid, String hpNum) {
         return slaveRedisTemplate.opsForHash().get(REDIS_HP_TABLE, hpNum);
+    }
+
+    private void removeRoomInfoFromUserID(String roomid, String userid){
+        try {
+            Object chatRoomJsonObj = slaveRedisTemplate.opsForHash().get(REDIS_ROOMINFO_TABLE, roomid);
+            if (chatRoomJsonObj != null) {
+                ChatRoomInfoBean chatRoomInfoBean = JsonObjectConverter.getObjectFromJSON(chatRoomJsonObj.toString(), ChatRoomInfoBean.class);
+                List<Object> userids = chatRoomInfoBean.getUSERIDS();
+                int removeIndex = -1;
+                for (int i = 0; i < userids.size(); i++) {
+                    if (userids.get(i).toString().equals(userid)) {
+                        userids.remove(i);
+                        removeIndex = i;
+                        break;
+                    }
+                }
+                List<Object> hpNums = chatRoomInfoBean.getHPNUMS();
+                // 채팅방에서 유저가 삭제된경우
+                if (removeIndex > -1) {
+                    hpNums.remove(removeIndex);
+                    // 이곳에 한 이유는 성능을 위해 유저아이디가 삭제된 경우에만 재 저장로직을 태움.
+                    chatRoomInfoBean.setUSERIDS(userids);
+                    chatRoomInfoBean.setHPNUMS(hpNums);
+                    masterRedisTemplate.opsForHash().put(REDIS_ROOMINFO_TABLE, roomid, JsonObjectConverter.getAsJSON(chatRoomInfoBean));
+                }
+            }
+        }catch (Exception e){
+            e.printStackTrace();
+        }
     }
 }

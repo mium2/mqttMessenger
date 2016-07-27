@@ -5,7 +5,8 @@ var ws;
 var lastMessageSent;
 var clientID = "TEST01";
 var chatRoomUserCnt = 10;
-var chatRoomID = "f92738ff9385132b6c430826b2d820d3";
+var chatRoomID = "365bfa203943f4192c302143bbf5f87f";
+var savedMsgArr = new Array();
 
 if ("WebSocket" in window){
     // Let us open a web socket
@@ -47,7 +48,7 @@ if ("WebSocket" in window){
                     var topic = revMsgArr[3];
                     var payload = revMsgArr[4];
                     ws.send("PUBACK|"+publisherid+"|"+messageid);
-                    putRevMsgUI(payload);
+                    putRevMsgUI(payload,"Y");
                 }else if(command=="#SYS_MSG00"){
                     var topic = revMsgArr[1];
                     var messageid = revMsgArr[2];
@@ -69,7 +70,7 @@ if ("WebSocket" in window){
                     var thumnailUrl = revMsgArr[5];
                     console.log("## [downloadUrl]:"+downloadUrl+"  thumnailUrl:"+thumnailUrl+"  fileExt:"+fileExt);
                     ws.send("PUBACK|"+publisherid+"|"+messageid);
-                    putRevImgUI(downloadUrl,thumnailUrl);
+                    putRevImgUI(downloadUrl,thumnailUrl,"Y");
                 }
             }
         }
@@ -202,6 +203,8 @@ function sendPing(){
 
 //메세지 발송
 window.onload = function() {
+    initLoad();
+
     document.getElementById("message").onkeypress = function() {
         if (event.keyCode == '13') {
 
@@ -213,7 +216,7 @@ window.onload = function() {
             //stringToUTF8(sendMsg, byteStream, 0);
             ///////////////////////////////////////////////////
             var makeMsgId = makeMessageID();
-            putSendMsgUI(sendMsg,makeMsgId);
+            putSendMsgUI(sendMsg,makeMsgId,"Y");
 
             // command|clientid|messageid|topic|메세지
             sendMsg="PUBLISH|"+clientID+"|"+makeMsgId+"|"+chatRoomID+"|"+sendMsg;
@@ -224,7 +227,32 @@ window.onload = function() {
     }
 }
 
-function putSendMsgUI(sendMsg, makeMsgId){
+function initLoad(){
+    //localStorage.removeItem(clientID+"_msg");
+    var JsonSavedMsg = localStorage.getItem(clientID+"_msg");
+    if(JsonSavedMsg!=null){
+        console.log("### put saved msg: " + JsonSavedMsg);
+        savedMsgArr = JSON.parse(JsonSavedMsg);
+    }
+
+    console.log("### savedMsgArr.length:"+savedMsgArr.length);
+    for(var i=0; i<savedMsgArr.length; i++){
+        var uiMsgArr = savedMsgArr[i].split("|");
+        if(uiMsgArr[0]=="0"){
+            putSendMsgUI(uiMsgArr[1],uiMsgArr[2],"N");
+        }else if(uiMsgArr[0]=="1"){
+            putRevMsgUI(uiMsgArr[1],"N")
+        }else if(uiMsgArr[0]=="2"){
+            putRevImgUI(uiMsgArr[1],uiMsgArr[2],"N")
+        }
+    }
+}
+
+
+function putSendMsgUI(sendMsg, makeMsgId, isSave_YN){
+    if(isSave_YN=="N"){
+        chatRoomUserCnt = "";
+    }
     var now = new Date();
     var selfChatDiv = "<li class='self'>";
     selfChatDiv=selfChatDiv+"<div class='avatar'><img src='http://i.imgur.com/DY6gND0.png' draggable='false'/></div>";
@@ -235,9 +263,23 @@ function putSendMsgUI(sendMsg, makeMsgId){
 
     var chatOl = document.getElementById("chat_ol");
     chatOl.insertAdjacentHTML('beforeend', selfChatDiv);
+
+    if(isSave_YN=="Y"){
+        if(savedMsgArr.length>=10){
+            savedMsgArr.splice(0,1);
+        }
+        console.log("###1. savedMsgArr length :"+savedMsgArr.length);
+        savedMsgArr.push("0|"+sendMsg+"|"+makeMsgId);
+        console.log("###2. savedMsgArr length :"+savedMsgArr.length);
+
+        var jsonString = JSON.stringify(savedMsgArr);
+        //var putString = jsonString.substring(1,jsonString.length-1);
+        console.log("###3. putString :"+jsonString);
+        localStorage.setItem(clientID+"_msg",jsonString);
+    }
 }
 
-function putRevMsgUI(revMsg){
+function putRevMsgUI(revMsg, isSave_YN){
     var now = new Date();
     var otherChatDiv = "<li class='other'>";
     otherChatDiv=otherChatDiv+"<div class='avatar'><img src='http://i.imgur.com/HYcn9xO.png' draggable='false'/></div>";
@@ -249,9 +291,18 @@ function putRevMsgUI(revMsg){
 
     var chatOl = document.getElementById("chat_ol");
     chatOl.insertAdjacentHTML('beforeend', otherChatDiv);
+
+    if(isSave_YN=="Y"){
+        if(savedMsgArr.length>=10){
+            savedMsgArr.splice(0,1);
+        }
+        savedMsgArr.push("1|"+revMsg+"| ");
+        var jsonString = JSON.stringify(savedMsgArr);
+        localStorage.setItem(clientID+"_msg",jsonString);
+    }
 }
 
-function putRevImgUI(downUrl, thumnailUrl){
+function putRevImgUI(downUrl, thumnailUrl,isSave_YN){
     console.log("### downUrl:"+downUrl+"   thumnailUrl:"+thumnailUrl);
     var now = new Date();
     var otherChatDiv = "<li class='other'>";
@@ -264,4 +315,13 @@ function putRevImgUI(downUrl, thumnailUrl){
 
     var chatOl = document.getElementById("chat_ol");
     chatOl.insertAdjacentHTML('beforeend', otherChatDiv);
+
+    if(isSave_YN=="Y"){
+        if(savedMsgArr.length>=10){
+            savedMsgArr.splice(0,1);
+        }
+        savedMsgArr.push("3|"+downUrl+"|"+thumnailUrl);
+        var jsonString = JSON.stringify(savedMsgArr);
+        localStorage.setItem(clientID+"_msg",jsonString);
+    }
 }

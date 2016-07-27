@@ -9,7 +9,6 @@ import com.msp.messenger.service.rdb.RdbUserService;
 import com.msp.messenger.service.redis.RedisUserService;
 import com.msp.messenger.util.HexUtil;
 import com.msp.messenger.util.JsonObjectConverter;
-import org.apache.commons.codec.binary.Hex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -51,23 +50,24 @@ public class ChatRoomController {
         try {
             resultHeadMap = (Map<String, String>) request.getAttribute("authResultMap");
             if (resultHeadMap.get(Constants.RESULT_CODE_KEY).equals(Constants.RESULT_CODE_OK)) {  //인증에러가 아닐 경우만 비즈니스 로직 수행
-                TreeSet<Object> inviteUserIDTreeSet = new TreeSet<Object>();
+                TreeSet<Object> reqInviteUserIDTreeSet = new TreeSet<Object>();
                 StringTokenizer st = new StringTokenizer(makeRoomBean.getINVITE_USERIDS(),",");
                 while (st.hasMoreTokens()){
-                    inviteUserIDTreeSet.add(st.nextToken().trim());
+                    reqInviteUserIDTreeSet.add(st.nextToken().trim());
                 }
-                inviteUserIDTreeSet.add(makeRoomBean.getUSERID().trim());
+                reqInviteUserIDTreeSet.add(makeRoomBean.getUSERID().trim());
                 Set<String> pushSendUseridSet = new HashSet<String>();
                 List<Object> userIDs = new ArrayList<Object>();
                 List<String> userIDs_BrokerIDs = new ArrayList<String>();
                 List<Object> hpNums = new ArrayList<Object>();
                 String roomOwnerUserid = makeRoomBean.getUSERID();
                 String roomOwnerNicname = makeRoomBean.getUSERID();
-                if(inviteUserIDTreeSet.size()>1){
-                    // 초대한 유저아이디가 실질적으로 메신저서비스 가입이되어 있는지 확인.
-                    List<UserInfoBean> userInfoBeans = redisUserService.multiGetUserInfoFromUserIdset(makeRoomBean.getAPPID(),inviteUserIDTreeSet);
+
+                TreeSet<Object> inviteUserIDTreeSet = new TreeSet<Object>();
+                if(reqInviteUserIDTreeSet.size()>1){
+                    // 초대한 유저아이디가 실질적으로 메신저서비스 가입되어 있는지 확인.
+                    List<UserInfoBean> userInfoBeans = redisUserService.multiGetUserInfoFromUserIdset(makeRoomBean.getAPPID(),reqInviteUserIDTreeSet);
                     // 초대한 유저아이디갯수와 실직적으로 메신저서비스 가입되어 있는 유저수가 다를 경우 메신저 서비스에 가입되어 있는 유저만 대화방에 등록함.
-                    inviteUserIDTreeSet = new TreeSet<Object>();
                     for(UserInfoBean userInfoBean : userInfoBeans){
                         String db_userID = userInfoBean.getUSERID();
                         String db_hpNum = userInfoBean.getHP_NUM();
@@ -94,19 +94,31 @@ public class ChatRoomController {
                 makeRoomBean.setROOMID(chatRoomID);
                 //이미 만들어진 채팅방을 또 만드는지 검증
                 String checkRoomID = redisUserService.isExistChatRoomTopic(makeRoomBean,inviteUserIDTreeSet.size());
-                if(checkRoomID==null || !checkRoomID.equals(chatRoomID)) {
-                    if(checkRoomID==null){
+                if(checkRoomID==null) {
+                    // 신규생성
+                    if (checkRoomID == null) {
                         checkRoomID = chatRoomID;
                     }
                     makeRoomBean.setROOMID(checkRoomID);
                     // 챗팅방 만들기
-                    redisUserService.makeChatRoom(makeRoomBean,userIDs,userIDs_BrokerIDs,hpNums,inviteUserIDTreeSet);
+                    redisUserService.makeChatRoom(makeRoomBean, userIDs, userIDs_BrokerIDs, hpNums, inviteUserIDTreeSet);
                     // 푸시를 이용하여 해당 사용자에 초대 메세지를 보낸다.
                     StringBuilder sb = new StringBuilder();
                     sb.append("[");
                     sb.append(roomOwnerNicname);
                     sb.append("]님이 대화방에 초대하였습니다.");
-                    pushHttpCallService.pushSend(pushSendUseridSet,sb.toString(),makeRoomBean.getAPPID());
+                    pushHttpCallService.pushSend(pushSendUseridSet, sb.toString(), makeRoomBean.getAPPID());
+                }else if(checkRoomID.equals("R_"+chatRoomID)){
+                    // 이미 생성되어 있으나 방을 나간 유저가 있어 다시 해당 유저를 롤백시켜서 등록해야함.
+                    makeRoomBean.setROOMID(checkRoomID);
+                    // 챗팅방 다시 만들기
+                    Set<String> reEntryUsers = redisUserService.reMakeChatRoom(makeRoomBean, userIDs, userIDs_BrokerIDs, hpNums, inviteUserIDTreeSet);
+                    // 푸시를 이용하여 재 등록사용자에게만 초대 메세지를 보낸다.
+                    StringBuilder sb = new StringBuilder();
+                    sb.append("[");
+                    sb.append(roomOwnerNicname);
+                    sb.append("]님이 대화방에 재초대하였습니다.");
+                    pushHttpCallService.pushSend(reEntryUsers, sb.toString(), makeRoomBean.getAPPID());
                 }else{
                     resultHeadMap.put(Constants.RESULT_CODE_KEY, Constants.ERR_2003);
                     resultHeadMap.put(Constants.RESULT_MESSAGE_KEY, Constants.ERR_2003_MSG);
