@@ -136,10 +136,12 @@ function encodeMBI(number) {
 }
 
 function makeMessageID(){
-    var msgid = localStorage.getItem("messageid");
+    var msgid = $.jStorage.get("messageid");
+    //var msgid = localStorage.getItem("messageid");
     if(msgid==null){
         msgid = 1;
-        localStorage.setItem("messageid",msgid);
+        $.jStorage.set("messageid",msgid);
+        //localStorage.setItem("messageid",msgid);
         return msgid;
     }else{
         if(msgid>=65536){
@@ -147,7 +149,8 @@ function makeMessageID(){
         }else{
             msgid++;
         }
-        localStorage.setItem("messageid",msgid);
+        $.jStorage.set("messageid",msgid);
+        //localStorage.setItem("messageid",msgid);
         return msgid;
     }
 }

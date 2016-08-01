@@ -4,13 +4,13 @@
 var ws;
 var lastMessageSent;
 var clientID = "TEST01";
-var chatRoomUserCnt = 10;
-var chatRoomID = "365bfa203943f4192c302143bbf5f87f";
+var chatRoomUserCnt = 2;
+var chatRoomID = "d9408fbb558ded065d902093fed296d3";
 var savedMsgArr = new Array();
 
 if ("WebSocket" in window){
     // Let us open a web socket
-    ws = new WebSocket("ws://localhost:8080/webchat");
+    ws = new WebSocket("ws://52.79.96.155:28080/webchat");
     ws.binaryType = "arraybuffer";
     ws.onopen = function() {
         var connectMsg="CONNECT|"+clientID;
@@ -229,7 +229,7 @@ window.onload = function() {
 
 function initLoad(){
     //localStorage.removeItem(clientID+"_msg");
-    var JsonSavedMsg = localStorage.getItem(clientID+"_msg");
+    var JsonSavedMsg = $.jStorage.get(clientID+"_msg");
     if(JsonSavedMsg!=null){
         console.log("### put saved msg: " + JsonSavedMsg);
         savedMsgArr = JSON.parse(JsonSavedMsg);
@@ -275,7 +275,8 @@ function putSendMsgUI(sendMsg, makeMsgId, isSave_YN){
         var jsonString = JSON.stringify(savedMsgArr);
         //var putString = jsonString.substring(1,jsonString.length-1);
         console.log("###3. putString :"+jsonString);
-        localStorage.setItem(clientID+"_msg",jsonString);
+        $.jStorage.set(clientID+"_msg",jsonString);
+        //localStorage.setItem(clientID+"_msg",jsonString);
     }
 }
 
@@ -298,7 +299,8 @@ function putRevMsgUI(revMsg, isSave_YN){
         }
         savedMsgArr.push("1|"+revMsg+"| ");
         var jsonString = JSON.stringify(savedMsgArr);
-        localStorage.setItem(clientID+"_msg",jsonString);
+        $.jStorage.set(clientID+"_msg",jsonString);
+        //localStorage.setItem(clientID+"_msg",jsonString);
     }
 }
 
@@ -322,6 +324,7 @@ function putRevImgUI(downUrl, thumnailUrl,isSave_YN){
         }
         savedMsgArr.push("3|"+downUrl+"|"+thumnailUrl);
         var jsonString = JSON.stringify(savedMsgArr);
-        localStorage.setItem(clientID+"_msg",jsonString);
+        $.jStorage.set(clientID+"_msg",jsonString);
+        //localStorage.setItem(clientID+"_msg",jsonString);
     }
 }

@@ -14,7 +14,25 @@
     <port>1883</port>
     <ssl_port>8443</ssl_port>
     <http_port>8888</http_port>
+    <websocket_port>28080</websocket_port>
     <locale>kr_K</locale>
+    <redis>
+        <master>
+            <host>211.241.199.215</host>
+            <port>6379</port>
+            <db>3</db>
+        </master>
+        <slave>
+            <host>211.241.199.217</host>
+            <port>6379</port>
+            <db>3</db>
+        </slave>
+        <sentinels>
+            <use>Y</use>
+            <ips>211.241.199.215</ips>
+            <ports>26379</ports>
+        </sentinels>
+    </redis>
     <!--
     오프라인메세지 저장소 설정 : ehcache : 0, redis : 1 중 선택
     ehcache사용은 단일 서버이거나 사용자가 다른 서버로 붙는걸 허용하지 않을시만 가능. 스토리지에 저장하지 않고 메모리로만 사용시 성능은 엄첨빠름.
@@ -27,9 +45,6 @@
     <!--메모리 디비 파일경로-->
     <sqlite_scr>/Users/mium2/project/mium-push-all-proj/mium2-push-server/push-broker.db</sqlite_scr>
 
-    <!-- 발송 정보 캐쉬 공유 재전송 주기 10000ms : 10초-->
-    <cache_replication_retry_interval>10000</cache_replication_retry_interval>
-
     <!-- 메시지 처리 쓰레드 카운트-->
     <protocol_thread_count>5</protocol_thread_count>
 
@@ -38,9 +53,6 @@
 
     <!-- 메시지 사이즈 제한 (byte) MaxSize 268435455 bytes, 기본값 : 제한 없음 -->
     <message_size_limit>0</message_size_limit>
-
-    <!-- offline 메시지 전송 주기(초) 기본값  : 0 사용 안함 -->
-    <resend_interval>0</resend_interval>
 
     <!-- 메시지 큐 사이즈 제한 기본값 : 0  사용안함 -->
     <queue_size>0</queue_size>
@@ -57,7 +69,7 @@
     <!--채팅방별 메세지 히스토리 저장갯수 설정-->
     <room_msg_max_save_cnt>100</room_msg_max_save_cnt>
 
-    <!-- 아래의 파일저장 디렉토리는 웹서버 루트디렉토리 안이어야 합니다.-->
+    <!-- 파일 메세지일 경우 저장 디렉토리. 해당 디렉토리는 WEB서버가 엑세스 할 수 있는 물리적인 경로여야한다.-->
     <file_save_src>/Users/mium2/project/git_repository/mqttMessenger/messenger-api-web/target/messenger-api-web-1.0.0/download_file/</file_save_src>
     <download_hosturl>http://211.241.199.139:18080/download_file/</download_hosturl>
     <thumbnail_width>100</thumbnail_width>

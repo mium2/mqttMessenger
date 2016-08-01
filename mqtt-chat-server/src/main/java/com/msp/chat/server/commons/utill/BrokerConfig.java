@@ -30,6 +30,17 @@ public class BrokerConfig {
     public static String SSL_PORT = "ssl_port";
     public static String SSL_CIPHER_SUITE = "ssl_cipher_suite";
     public static String HTTP_PORT = "http_port";
+    public static String WEBSOCKET_PORT = "websocket_port";
+
+    public static String REDIS_MASTER_HOST = "redis.master.host";
+    public static String REDIS_MASTER_PORT = "redis.master.port";
+    public static String REDIS_MASTER_DB = "redis.master.db";
+    public static String REDIS_SLAVE_HOST = "redis.slave.host";
+    public static String REDIS_SLAVE_PORT = "redis.slave.port";
+    public static String REDIS_SLAVE_DB = "redis.slave.db";
+    public static String REDIS_SENTINELS_USE = "redis.sentinels.use";
+    public static String REDIS_SENTINELS_IPS = "redis.sentinels.ips";
+    public static String REDIS_SENTINEL_PORTS = "redis.sentinels.ports";
 
     public static String OFFMSG_STORE_KIND = "offmsg_store_kind";
 
@@ -75,9 +86,19 @@ public class BrokerConfig {
         properties.put(SSL_PORT, xml.getString(SSL_PORT,"8883"));
         properties.put(SSL_CIPHER_SUITE, xml.getString(SSL_CIPHER_SUITE,""));
         properties.put(HTTP_PORT, xml.getString(HTTP_PORT,"8888"));
+        properties.put(WEBSOCKET_PORT, xml.getString(WEBSOCKET_PORT,"8080"));
+
+        properties.put(REDIS_MASTER_HOST, xml.getString(REDIS_MASTER_HOST,"localhost"));
+        properties.put(REDIS_MASTER_PORT, xml.getString(REDIS_MASTER_PORT,"6379"));
+        properties.put(REDIS_MASTER_DB, xml.getString(REDIS_MASTER_DB,"3"));
+        properties.put(REDIS_SLAVE_HOST, xml.getString(REDIS_SLAVE_HOST,"localhost"));
+        properties.put(REDIS_SLAVE_PORT, xml.getString(REDIS_SLAVE_PORT,"6379"));
+        properties.put(REDIS_SLAVE_DB, xml.getString(REDIS_SLAVE_DB,"3"));
+        properties.put(REDIS_SENTINELS_USE, xml.getString(REDIS_SENTINELS_USE,"N"));
+        properties.put(REDIS_SENTINELS_IPS, xml.getString(REDIS_SENTINELS_IPS,"localhost"));
+        properties.put(REDIS_SENTINEL_PORTS, xml.getString(REDIS_SENTINEL_PORTS,"26379"));
 
         properties.put(OFFMSG_STORE_KIND, xml.getString(OFFMSG_STORE_KIND,"1"));
-
         properties.put(SUBSCRIBE_STORE_KIND, xml.getString(SUBSCRIBE_STORE_KIND,"redis"));
         properties.put(SYNC_BROKER_SERVER_IP, xml.getString(SYNC_BROKER_SERVER_IP,"0.0.0.0"));
         properties.put(PROTOCOL_THREAD_COUNT, xml.getString(PROTOCOL_THREAD_COUNT,"5"));
@@ -95,7 +116,6 @@ public class BrokerConfig {
         properties.put(DBSTORAGEUSE_YN, xml.getString(DBSTORAGEUSE_YN,"N"));
 
         properties.put(ROOM_MSG_MAX_SAVE_CNT, xml.getString(ROOM_MSG_MAX_SAVE_CNT,"100"));
-
         properties.put(FILE_SAVE_SRC, xml.getString(FILE_SAVE_SRC,""));
         properties.put(DOWNLOAD_HOSTURL, xml.getString(DOWNLOAD_HOSTURL,""));
         properties.put(THUMBNAIL_WIDTH, xml.getString(THUMBNAIL_WIDTH,"100"));

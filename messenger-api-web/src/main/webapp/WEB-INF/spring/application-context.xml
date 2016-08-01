@@ -60,23 +60,20 @@
     <!--REDIS 관련 인스턴스 Bean -->
     <bean id="stringRedisSerializer" class="org.springframework.data.redis.serializer.StringRedisSerializer"/>
 
-<!--
 
     <bean id="myMaster" class= "org.springframework.data.redis.connection.RedisNode"
           c:host="${redis.master.hostName}"
           c:port="${redis.master.port}"
           p:name="mymaster"/>
 
-    &lt;!&ndash; Sentinels &ndash;&gt;
+    <!-- Sentinels -->
     <bean id="mySent1" class= "org.springframework.data.redis.connection.RedisNode" c:host="${sentinel.ip1}" c:port="${sentinel.port1}"/>
-    <bean id="mySent2" class= "org.springframework.data.redis.connection.RedisNode" c:host="${sentinel.ip2}" c:port="${sentinel.port2}"/>
-    <bean id="mySent3" class= "org.springframework.data.redis.connection.RedisNode" c:host="${sentinel.ip3}" c:port="${sentinel.port3}"/>
+    <!--<bean id="mySent2" class= "org.springframework.data.redis.connection.RedisNode" c:host="${sentinel.ip2}" c:port="${sentinel.port2}"/>-->
     <bean id="mySents" class= "java.util.HashSet">
         <constructor-arg>
             <list>
                 <ref bean="mySent1"/>
-                <ref bean="mySent2"/>
-                <ref bean="mySent3"/>
+                <!--<ref bean="mySent2"/>-->
             </list>
         </constructor-arg>
     </bean>
@@ -85,7 +82,7 @@
           p:master-ref="myMaster"
           p:mySentinels-ref="mySents"/>
 
-    &lt;!&ndash;2.2.3 POOL & Connection&ndash;&gt;
+    <!--2.2.3 POOL & Connection-->
     <bean id="jedisPoolConfig" class="redis.clients.jedis.JedisPoolConfig"/>
     <bean id="jedisConnFactory" class="org.springframework.data.redis.connection.jedis.JedisConnectionFactory"
           p:usePool="true"
@@ -95,7 +92,7 @@
           c:sentinelConfig-ref="redisSentinelConf"
             />
 
-    &lt;!&ndash; redis template definition &ndash;&gt;
+    <!-- redis template definition -->
     <bean id="masterRedisTemplate"
           class="org.springframework.data.redis.core.RedisTemplate"
           p:connectionFactory-ref="jedisConnFactory"
@@ -118,9 +115,9 @@
     </bean>
 
     <bean id="slaveJedisConnFactory" class="org.springframework.data.redis.connection.jedis.JedisConnectionFactory">
-        <property name="hostName" value="${redis.master.hostName}" />
-        <property name="port" value="${redis.master.port}" />
-        <property name="database" value="${redis.master.database}" />
+        <property name="hostName" value="${redis.slave.hostname}" />
+        <property name="port" value="${redis.slave.port}" />
+        <property name="database" value="${redis.slave.database}" />
         <property name="usePool" value="true" />
         <property name="timeout" value="1200000" />
         <property name="poolConfig" ref="slaveRedisPoolConfig"/>
@@ -135,10 +132,11 @@
           p:hashValueSerializer-ref="stringRedisSerializer">
         <qualifier value="slaveRedisTemplate"/>
         </bean>
--->
+
+
 
     <!-- Put/Remove Master Redis-->
-    <bean id="masterRedisPoolConfig" class="redis.clients.jedis.JedisPoolConfig">
+<!--    <bean id="masterRedisPoolConfig" class="redis.clients.jedis.JedisPoolConfig">
         <property name="maxTotal" value="2"/>
         <property name="maxWaitMillis" value="3000"/>
         <property name="maxIdle" value="50"/>
@@ -177,5 +175,5 @@
         <property name="hashKeySerializer" ref="stringRedisSerializer"/>
         <property name="hashValueSerializer" ref="stringRedisSerializer"/>
         <property name="stringSerializer" ref="stringRedisSerializer"/>
-    </bean>
+    </bean>-->
 </beans>

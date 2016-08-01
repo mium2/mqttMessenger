@@ -59,6 +59,13 @@ public class Server {
             LOGGER.error(je.getMessage());
             return;
         }
+        //브로커서버 config 설정 로드
+        try {
+            BrokerConfig.Load(SERVER_CONF_FILE);
+        }catch(ConfigurationException e) {
+            LOGGER.error(e.getMessage());
+            return;
+        }
 
         ctx = new AnnotationConfigApplicationContext(ApplicationConfig.class);  //스프링 Config 호출
 
@@ -75,13 +82,6 @@ public class Server {
             System.exit(-1);
         }
 
-        //브로커서버 config 설정 로드
-        try {
-            BrokerConfig.Load(SERVER_CONF_FILE);
-        }catch(ConfigurationException e) {
-            LOGGER.error(e.getMessage());
-            return;
-        }
         // 다국어 지원
         LocaleUtils.init();
         try {

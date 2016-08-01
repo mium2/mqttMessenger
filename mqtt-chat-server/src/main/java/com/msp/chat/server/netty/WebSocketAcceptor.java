@@ -1,5 +1,6 @@
 package com.msp.chat.server.netty;
 
+import com.msp.chat.server.commons.utill.BrokerConfig;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelOption;
@@ -19,8 +20,9 @@ import org.slf4j.LoggerFactory;
 public class WebSocketAcceptor {
     private static final Logger LOG = LoggerFactory.getLogger("server");
 
-    static final boolean SSL = System.getProperty("ssl") != null;
-    static final int PORT = Integer.parseInt(System.getProperty("port", SSL? "8443" : "8080"));
+    static final boolean SSL = BrokerConfig.getProperty("ssl") != null;
+//    static final int PORT = Integer.parseInt(System.getProperty("port", SSL? "8443" : "8080"));
+    static final int PORT = BrokerConfig.getIntProperty(BrokerConfig.WEBSOCKET_PORT);
 
     public void run() throws Exception {
         // Configure SSL.
