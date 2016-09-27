@@ -23,13 +23,13 @@ public class RedisUserService {
 
     private Logger logger = LoggerFactory.getLogger(this.getClass().getName());
 
-    public final static String REDIS_CHATUSER_TABLE = "USER";
-    public final static String REDIS_HP_TABLE = "HP_USERID";
-    public final static String REDIS_USERID_ROOMIDS_TABLE = "USERID_ROOMIDS";
-    public final static String REDIS_ROOMINFO_TABLE = "ROOMINFO";
-    public final static String REDIS_ROOMID_SUBSCRUBE = "ROOMID_SUBSCRIBE";  // 메신저서버가 발송할때 참조하는 키테이블
-    public final static String REDIS_USER_BROKERID = "USER_BROKERID";
-    public final static String REDIS_ROOMID_MSG = "ROOMID_";
+    public final static String REDIS_CHATUSER_TABLE = "H_USER";  // 사용자아이디 : 사용자 정보
+    public final static String REDIS_HP_TABLE = "H_HP_USERID";  // 핸드폰키: 사용자아이디
+    public final static String REDIS_USERID_ROOMIDS_TABLE = "H_USERID_ROOMIDS"; // 사용자아이디 : [채팅방]
+    public final static String REDIS_ROOMINFO_TABLE = "H_ROOMINFO"; //채팅방아이디 : 채팅방정보(채팅방아이디,대화참여자아이디s,핸드폰번호s,앱아이디)
+    public final static String REDIS_ROOMID_SUBSCRUBE = "H_ROOMID_SUBSCRIBE";  // 채팅방아이디 : [사용자아이디s]
+    public final static String REDIS_LOGINUSER_BROKERID = "H_LOGINUSER_BROKERID"; //LOGIN 아아디 : 할당된 브로커아이디
+    public final static String REDIS_ROOMID_MSG = "L_ROOMID_";  // 채팅방아이디 : 발송된 메세지 ==> 채팅방별 지난대화리스트를 위해.
 
     @Value("${MAX_BROKER_ALLOCATE_USER:500000}")
     private String MAX_BROKER_ALLOCATE_USER;
@@ -211,10 +211,6 @@ public class RedisUserService {
         masterRedisTemplate.opsForHash().putAll(REDIS_ROOMID_SUBSCRUBE, multiPutSubscriber);
     }
 
-    public void putUserIDBrokerID(String appid,String clientID, String brokerID){
-        masterRedisTemplate.opsForHash().put(REDIS_USER_BROKERID, clientID, brokerID);
-    }
-
     public void removeUser(UserInfoBean userInfoBean) throws Exception {
         //1. 유저 삭제
         masterRedisTemplate.opsForHash().delete(REDIS_CHATUSER_TABLE, userInfoBean.getUSERID());
@@ -243,27 +239,21 @@ public class RedisUserService {
             }
         }
 
-        //4. USER_BROKERID 키테이블에서 삭제
-        masterRedisTemplate.opsForHash().delete(REDIS_USER_BROKERID, userInfoBean.getUSERID());
+        //4. H_LOGINUSER_BROKERID 키테이블에서 삭제
+        masterRedisTemplate.opsForHash().delete(REDIS_LOGINUSER_BROKERID,userInfoBean.getUSERID());
 
         //5. USERID_ROOMIDS 삭제
         masterRedisTemplate.opsForHash().delete(REDIS_USERID_ROOMIDS_TABLE, userInfoBean.getUSERID());
     }
 
-    public String isExistChatRoomTopic(MakeRoomBean makeRoomBean, int memberCnt){
-        String returnRoomID = makeRoomBean.getROOMID();
-        // 같은 멤버로 존재는 하나 방을 나간 사용자가 있다면 방아이디를 똑같이 하고 나간 회원을 다시 넣기위해 R_를 붙여서 리턴.
+    public ChatRoomInfoBean isExistChatRoom(MakeRoomBean makeRoomBean){
+        ChatRoomInfoBean chatRoomInfoBean = null;
         Object obj = slaveRedisTemplate.opsForHash().get(REDIS_ROOMINFO_TABLE,makeRoomBean.getROOMID());
         if(obj!=null){
-            ChatRoomInfoBean chatRoomInfoBean = JsonObjectConverter.getObjectFromJSON(obj.toString(),ChatRoomInfoBean.class);
-            if(chatRoomInfoBean.getUSERIDS().size()!=memberCnt){
-                // 방을 나간 회원이 있으므로 나간 회원을 다시 복귀 시켜주기 위해 R_로표시함.
-                returnRoomID = "R_"+returnRoomID;
-            }
-        }else{
-            returnRoomID = null;
+            chatRoomInfoBean = JsonObjectConverter.getObjectFromJSON(obj.toString(),ChatRoomInfoBean.class);
+
         }
-        return returnRoomID;
+        return chatRoomInfoBean;
     }
 
     public void makeChatRoom(MakeRoomBean makeRoomBean,List<Object> userIDs,List<String> userIDs_BrokerIDs, List<Object> hpNums, TreeSet<Object> inviteUserIDTreeSet) throws Exception{
@@ -271,6 +261,7 @@ public class RedisUserService {
         ChatRoomInfoBean chatRoomInfoBean = new ChatRoomInfoBean();
         chatRoomInfoBean.setAPPID(makeRoomBean.getAPPID());
         chatRoomInfoBean.setROOMID(makeRoomBean.getROOMID());
+        chatRoomInfoBean.setROOM_NAME(makeRoomBean.getROOMNAME());
         chatRoomInfoBean.setROOM_OWNER(makeRoomBean.getUSERID());
         chatRoomInfoBean.setUSERIDS(userIDs);
         chatRoomInfoBean.setHPNUMS(hpNums);
@@ -299,6 +290,7 @@ public class RedisUserService {
         }
     }
 
+    @Deprecated
     public Set<String> reMakeChatRoom(MakeRoomBean makeRoomBean,List<Object> userIDs,List<String> userIDs_BrokerIDs, List<Object> hpNums, TreeSet<Object> inviteUserIDTreeSet) throws Exception{
         // REDIS_ROOMINFO_TABLE, REDIS_ROOMID_SUBSCRUBE, REDIS_USERID_ROOMIDS_TABLE ==> 이 3개의 키테이블 삭제 후 다시 저장
         //현재 채팅방에 등록되어 있는 유저정보를 가져온다.
@@ -370,6 +362,9 @@ public class RedisUserService {
         if(chatRoomIdSet.size()>0){
             List<Object> chatRoomInfoJsonList = slaveRedisTemplate.opsForHash().multiGet(REDIS_ROOMINFO_TABLE, chatRoomIdSet);
             for(Object chatRoomInfoJsonString : chatRoomInfoJsonList){
+                if(chatRoomInfoJsonString==null){
+                    continue;
+                }
                 ChatRoomInfoBean chatRoomInfoBean = JsonObjectConverter.getObjectFromJSON(chatRoomInfoJsonString.toString(),ChatRoomInfoBean.class);
                 chatRoomInfoList.add(chatRoomInfoBean);
             }
@@ -385,6 +380,11 @@ public class RedisUserService {
             chatRoomInfoBean = JsonObjectConverter.getObjectFromJSON(obj.toString(),ChatRoomInfoBean.class);
         }
         return chatRoomInfoBean;
+    }
+
+    public void changeRoomOwner (String appid, ChatRoomInfoBean chatRoomInfoBean, String newOwner) throws Exception{
+        chatRoomInfoBean.setROOM_OWNER(newOwner);
+        masterRedisTemplate.opsForHash().put(REDIS_ROOMINFO_TABLE,chatRoomInfoBean.getROOMID(),JsonObjectConverter.getAsJSON(chatRoomInfoBean));
     }
 
     public void forceRemoveChatRoom(String appid, String roomid){
@@ -422,14 +422,17 @@ public class RedisUserService {
             // 대화방아이디_대화유저정보 키 테이블 삭제
             masterRedisTemplate.opsForHash().delete(REDIS_ROOMID_SUBSCRUBE,roomid);
             // 채팅방 메세지 히스토리 테이블 삭제
-            masterRedisTemplate.opsForHash().delete(REDIS_ROOMID_MSG+roomid);
+            masterRedisTemplate.opsForList().getOperations().delete(REDIS_ROOMID_MSG+roomid);
         }
     }
 
     public void getOutChatRoom(String appid, String userid, String roomid) throws Exception{
         // 1.챗팅방 정보에서 유저아이디리스트  해당유저삭제, 핸폰리스트에서 핸드폰번호삭제 처리. 2.유저아이디_챗팅룸아이디 리스트에서 해당 챗팅룸 아이디 삭제. 3.챗팅방아이디에 유저아이디 리스트에서 해당 아이디 삭제처리
         // STEP1 : 챗팅방정보에서 삭제.
-        // 만약, 한명만 남는 경우는 어떻게 처리 해야 되나? 채팅방을 눌렀을때 서버로 부터 상세정보를 받고 그때 대화상대가 없다는 표시를 하도록 유도한다.
+        // 만약, 한명만 남는 경우는 어떻게 처리 해야 되나? 알림 문구 띄우기 방삭제 처리 하는게 맞는 것 같음.
+
+        int existUser = 1;
+
         removeRoomInfoFromUserID(roomid,userid);
 
         // STEP 2 : 채팅방아이디 구독자정보 리스트 키테이블에서 해당 유저 삭제
@@ -442,6 +445,7 @@ public class RedisUserService {
                     break;
                 }
             }
+            existUser = subscribeList.size();
             masterRedisTemplate.opsForHash().put(REDIS_ROOMID_SUBSCRUBE,roomid,JsonObjectConverter.getAsJSON(subscribeList));
         }
 
@@ -454,6 +458,12 @@ public class RedisUserService {
                 masterRedisTemplate.opsForHash().put(REDIS_USERID_ROOMIDS_TABLE,userid,JsonObjectConverter.getAsJSON(roomIdSet));
             }
         }
+
+        // 사용자가 모두 나갔으면 방 삭제처리함.
+        if(existUser==0){
+            forceRemoveChatRoom(appid, roomid);
+        }
+
     }
 
     public boolean isExistHpNum(String appid, String hpNum){
@@ -492,5 +502,31 @@ public class RedisUserService {
         }catch (Exception e){
             e.printStackTrace();
         }
+    }
+
+    /**
+     * 로그인 성공한 아이디 저장
+     * @param loginID
+     * @throws Exception
+     */
+    public void putLoginID(String loginID,String brokerID) throws Exception{
+        masterRedisTemplate.opsForHash().put(REDIS_LOGINUSER_BROKERID,loginID,brokerID);
+    }
+
+    /**
+     * 로그인 상태아이디 인지 검증
+     * @param loginID
+     * @throws Exception
+     */
+    public boolean chkLoginID(String loginID) throws Exception{
+        return masterRedisTemplate.opsForHash().hasKey(REDIS_LOGINUSER_BROKERID,loginID);
+    }
+    /**
+     * 로그아웃 한 아이디 삭제
+     * @param loginID
+     * @throws Exception
+     */
+    public void rmLoginID(String loginID) throws Exception{
+        masterRedisTemplate.opsForHash().delete(REDIS_LOGINUSER_BROKERID,loginID);
     }
 }

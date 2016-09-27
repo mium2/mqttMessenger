@@ -7,8 +7,8 @@
     <messenger-web-api-server-host>http://localhost:18080/</messenger-web-api-server-host>
     <!-- 메신저서버 정보로드 하기 위해 -->
     <offmsg-push-send>Y</offmsg-push-send>
-    <push-upmc-host>http://52.79.96.110:28080/</push-upmc-host>
-    <push-servicecode>0001</push-servicecode>
+    <push-upmc-host>http://52.79.98.56:28080/</push-upmc-host>
+    <push-servicecode>ALL</push-servicecode>
     <push-sendercode>messenger</push-sendercode>
     <!-- listen 포트 -->
     <port>1883</port>
@@ -20,15 +20,15 @@
         <master>
             <host>211.241.199.215</host>
             <port>6379</port>
-            <db>3</db>
+            <db>11</db>
         </master>
         <slave>
             <host>211.241.199.217</host>
             <port>6379</port>
-            <db>3</db>
+            <db>11</db>
         </slave>
         <sentinels>
-            <use>Y</use>
+            <use>N</use>
             <ips>211.241.199.215</ips>
             <ports>26379</ports>
         </sentinels>
@@ -69,9 +69,9 @@
     <!--채팅방별 메세지 히스토리 저장갯수 설정-->
     <room_msg_max_save_cnt>100</room_msg_max_save_cnt>
 
-    <!-- 파일 메세지일 경우 저장 디렉토리. 해당 디렉토리는 WEB서버가 엑세스 할 수 있는 물리적인 경로여야한다.-->
-    <file_save_src>/Users/mium2/project/git_repository/mqttMessenger/messenger-api-web/target/messenger-api-web-1.0.0/download_file/</file_save_src>
-    <download_hosturl>http://211.241.199.139:18080/download_file/</download_hosturl>
+    <!-- 파일 메세지일 경우 저장 디렉토리.-->
+    <file_save_src>/Users/mium2/project/git_repository/mqttMessenger/temp_file/</file_save_src>
+    <download_hosturl>http://211.241.199.139:8888/</download_hosturl>
     <thumbnail_width>100</thumbnail_width>
     <thumbnail_height>100</thumbnail_height>
 

@@ -46,7 +46,7 @@ public class MemoryTokenManager {
      * @param access_token
      * @return
      */
-    public Map<String,String> validateAccessToken(String access_token, String APPID, String reqUSERID){
+    public Map<String,String> validateAccessToken(String access_token, String APPID, String req_devicdID){
         AppLicenseBean appLicenseBean = LicenseValidator.getInstance().getAppLicenseBean(APPID);
         Map<String,String> resultMap = new HashMap<String, String>();
         resultMap.put(Constants.RESULT_CODE_KEY,Constants.RESULT_CODE_OK);
@@ -57,18 +57,35 @@ public class MemoryTokenManager {
 
             //클라이언트 인증 해시값
             String clientHash = temp[1];
-
             String base = decrypt(temp[0], appLicenseBean.getSECRET_KEY());
             temp = base.split("&");
             String expireTimeMillis = temp[0];
             String userid = temp[1];
             String deviceid = temp[2];
 
-            if(!reqUSERID.equals(userid)){
-                // 인증 실패.
-                resultMap.put(Constants.RESULT_CODE_KEY, Constants.ERR_3006);
-                resultMap.put(Constants.RESULT_MESSAGE_KEY, Constants.ERR_3006_MSG+"(사용자아이디 위변조)");
+            if(!deviceid.equals(req_devicdID)){
+                // 토큰이 위변조 되었으므로 인증 에러 처리.
+                resultMap.put(Constants.RESULT_CODE_KEY, Constants.ERR_3012);
+                resultMap.put(Constants.RESULT_MESSAGE_KEY, Constants.ERR_3012_MSG);
                 return resultMap;
+            }
+
+            //로그인 한 아이디인지 검증
+            if(!redisUserService.chkLoginID(userid)){
+                // 인증실패
+                resultMap.put(Constants.RESULT_CODE_KEY, Constants.ERR_3010);
+                resultMap.put(Constants.RESULT_MESSAGE_KEY,Constants.ERR_3010_MSG);
+                return resultMap;
+            }else{
+                // 토큰 유효시간 검증
+                long long_expireTimeMillis = Long.parseLong(expireTimeMillis);
+                if (long_expireTimeMillis < System.currentTimeMillis()) {
+                    // 유효시간 만료 에러 처리
+                    resultMap.put(Constants.RESULT_CODE_KEY, Constants.ERR_3005);
+                    resultMap.put(Constants.RESULT_MESSAGE_KEY, Constants.ERR_3005_MSG);
+                    resultMap.put("USERID",userid); // 만료된 토큰을 삭제 할 수 있게 실패하였어도 넘겨줌.
+                    return resultMap;
+                }
             }
 
             // userid & license_secretKey 해쉬키값 비교
@@ -79,23 +96,8 @@ public class MemoryTokenManager {
                 resultMap.put(Constants.RESULT_MESSAGE_KEY, Constants.ERR_3004_MSG);
                 return resultMap;
             }
-
-            // 해당 유저아이디 서비스 등록되어 있는 사용자 검증.
-            UserInfoBean userInfoBean = redisUserService.getUserInfo(APPID,reqUSERID);
-
-            if (userInfoBean != null && deviceid.equals(userInfoBean.getDEVICEID())) {
-                // 토큰 유효시간 검증
-                long long_expireTimeMillis = Long.parseLong(expireTimeMillis);
-                if (long_expireTimeMillis < System.currentTimeMillis()) {
-                    // 유효시간 만료 에러 처리
-                    resultMap.put(Constants.RESULT_CODE_KEY, Constants.ERR_3005);
-                    resultMap.put(Constants.RESULT_MESSAGE_KEY, Constants.ERR_3005_MSG);
-                }
-            } else {
-                // 인증 실패.
-                resultMap.put(Constants.RESULT_CODE_KEY, Constants.ERR_3006);
-                resultMap.put(Constants.RESULT_MESSAGE_KEY, Constants.ERR_3006_MSG+"(DEVICE 인증오류)");
-            }
+            // 인증이 성공하면 토큰에서 추출한 유저아이디를 컨트롤에 넘겨줌.
+            resultMap.put("USERID",userid);
         }catch (Exception e){
             e.printStackTrace();
             resultMap.put(Constants.RESULT_CODE_KEY, Constants.ERR_3007);

@@ -53,7 +53,7 @@ public class PushHttpCallService {
         return httpClientUtil.sendForJsonResponse(null);
     }
 
-    public Map<String,Object> pushSend(Set<String> userIdS,String alertMsg,String appid) throws Exception{
+    public Map<String,Object> pushSend(Set<String> userIdS,String alertMsg,String appid,String roomID) throws Exception{
         HttpClientUtil httpClientUtil = new HttpClientUtil(null);
         Map<String, String> httpHeadParam = new HashMap<String, String>();
         httpHeadParam.put("Content-Type", "application/x-www-form-urlencoded");
@@ -64,6 +64,7 @@ public class PushHttpCallService {
         postParam.put("TYPE",SENDTYPE);
         postParam.put("CUID",JsonObjectConverter.getAsJSON(userIdS));
         postParam.put("SENDERCODE",SENDERCODE);
+        postParam.put("EXT",roomID);
 
         httpClientUtil.httpPostConnect(UPMC_HOSTNAME + PUSH_SENDMSG_URI, httpHeadParam, postParam, HttpClientUtil.requestConfig);
         return httpClientUtil.sendForJsonResponse(null);

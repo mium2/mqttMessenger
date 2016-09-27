@@ -3,6 +3,8 @@ package com.msp.chat.server.worker;
 import com.msp.chat.client.BrokerClientManager;
 import com.msp.chat.core.mqtt.proto.messages.*;
 import com.msp.chat.core.mqtt.Constants;
+import com.msp.chat.license.AppLicenseBean;
+import com.msp.chat.license.LicenseValidator;
 import com.msp.chat.server.Server;
 import com.msp.chat.server.bean.ConnectionDescriptor;
 import com.msp.chat.server.bean.Subscription;
@@ -17,6 +19,7 @@ import com.msp.chat.server.storage.redis.RedisStorageService;
 import com.msp.chat.server.storage.redis.RedisSubscribeStore;
 import com.msp.chat.server.storage.redis.bean.OffMsgBean;
 import com.msp.chat.server.storage.sqlite.SqliteSubscribeStore;
+import com.msp.chat.server.util.OAuth2Util;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 import net.sf.ehcache.Element;
@@ -113,12 +116,14 @@ public class MqttMsgProcessor {
             session.write(badProto);
             return;
         }
+        // 시스템 클라이언트가 아닌 경우 만 세션 체크
         if(!msg.getClientID().startsWith(BrokerConfig.SYSTEM_BROKER_CLIENT_PRIFIX)) {
+            // 로그인 한 아이디 인지 검증. 접속 시도한 브로커 서버가 할당 받은 브로커서버 인지 검증.
             Object obj = redisStorageService.getUserAsignBrokerID(msg.getClientID());
             if (obj == null || !obj.toString().equals(SERVER_ID)) {
                 ConnAckMessage badProto = new ConnAckMessage();
                 badProto.setReturnCode(ConnAckMessage.NOT_AUTHORIZED);
-                LOGGER.error("###[MqttMsgProcessor processConnect] not registed clientID or Not allocated broker serverID.");
+                LOGGER.error("###[MqttMsgProcessor processConnect] not login clientID or Not allocated broker serverID.");
                 session.write(badProto);
                 return;
             }
@@ -149,8 +154,8 @@ public class MqttMsgProcessor {
             //새로 접속한 클라이언트 아이디를 접속자 배열에 넣는다.
             ConnectionDescriptor connDescr = new ConnectionDescriptor(msg.getClientID(), session, msg.isCleanSession());
             ChannelQueue.getInstance().putChannel(msg.getClientID(), connDescr);
-            if (LOGGER.isDebugEnabled()) {
-                LOGGER.debug("###[MqttMsgProcessor processConnect] msg.getClientID(): {}, clientIDSessionMap.size: {}",msg.getClientID(),ChannelQueue.getInstance().getSize());
+            if (LOGGER.isTraceEnabled()) {
+                LOGGER.trace("###[MqttMsgProcessor processConnect] msg.getClientID(): {}, clientIDSessionMap.size: {}",msg.getClientID(),ChannelQueue.getInstance().getSize());
             }
 
             // 접속시 공통으로 보낼 메세지가 있다면 isWillFlag 플레그를 이용 하여 publish를 한다. 예)해당 그룹에 접속 정보 메세지
@@ -297,7 +302,7 @@ public class MqttMsgProcessor {
                         ImageIO.write(buffer_thumbnail_image, fileExtention, thumbFile);
                     }
 
-                    //TODO : 시스템메세지 파일 전송일 경우 : 바로 리턴하지 않고 다른 클라이언트에 이미지일경우 썸네일이미지 말들고 다운받을 주소를 보낸다. 이미지가 아닐 경우는 확장자 정보와 다운받을 주소를 보낸다.
+                    //TODO : 시스템메세지 파일 전송일 경우 : 바로 리턴하지 않고 다른 클라이언트에 이미지일경우 썸네일이미지 만들고 다운받을 주소를 보낸다. 이미지가 아닐 경우는 확장자 정보와 다운받을 주소를 보낸다.
                     byte[] sysMsgKindBytes = BrokerConfig.SYS_RES_MSG_FILE.getBytes();
                     byte[] fileExtBytes = fileExtention.getBytes();
                     byte[] imgDownUrlBytes= (downloadUrl+rev_fileName).getBytes();
@@ -458,7 +463,7 @@ public class MqttMsgProcessor {
         pubMessage.setMessageID(messageID);
 
         if(LOGGER.isDebugEnabled()){
-            LOGGER.debug("###[MqttMsgProcessor sendPublish] send userID : {}, messageID : {}, qos : {}", subClientID, messageID,qos);
+            LOGGER.debug("###[MqttMsgProcessor sendPublish] send userID : {}, messageID : {}, qos : {}", subClientID, messageID, qos);
         }
         // PC에서 WEBSOCKET에서 접속되어 있다면 PC에만 발송한다. 앱은 지난 메세지보기 요청을 통해 받는다.
         ChannelHandlerContext webSocketCtx = WebsocketClientIdCtxManager.getInstance().getChannel(subClientID);
@@ -605,7 +610,7 @@ public class MqttMsgProcessor {
      */
     protected void processPubAck(String subClientID, int messageID) {
         if(LOGGER_PUBACK.isDebugEnabled()) {
-            LOGGER_PUBACK.debug("Client ID : {}, messageID : {}",subClientID,messageID);
+            LOGGER_PUBACK.debug("Client ID : {}, messageID : {}", subClientID, messageID);
         }
         try {
             String pubClientID = null;
@@ -648,7 +653,7 @@ public class MqttMsgProcessor {
             LOGGER_PUBACK.debug("publish Client ID : {}, messageID : {}",pubClientID,messageID);
         }
         try {
-            redisStorageService.upPubMsgAckCnt(pubClientID,messageID);
+            redisStorageService.upPubMsgAckCnt(pubClientID, messageID);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -658,7 +663,7 @@ public class MqttMsgProcessor {
      * OffMessage에 저장된 못 보낸 메세지 즉시 발송한다.
      * @param clientID
      */
-    private void offMsgRepublish(String clientID) {
+    public void offMsgRepublish(String clientID) {
         // OFFMSG ==> REDIS 사용시
         if(OFFMSG_STORAGE_KIND.equals("1")){
             List<OffMsgBean> offMsgBeans = redisStorageService.getSendOffMsgList(clientID);
@@ -856,6 +861,50 @@ public class MqttMsgProcessor {
             retrunValue = true;
         }
         return retrunValue;
+    }
+
+    /**
+     * 요청한 토큰의 validate 체크 API
+     * @param access_token
+     * @return
+     */
+    private boolean validateAccessToken(String access_token, String APPID, String reqUSERID){
+
+        AppLicenseBean appLicenseBean = LicenseValidator.getInstance().getAppLicenseBean(APPID);
+        try {
+            String[] temp = access_token.split("_");
+
+            //클라이언트 인증 해시값
+            String clientHash = temp[1];
+
+            String base = OAuth2Util.decrypt(temp[0], appLicenseBean.getSECRET_KEY());
+            temp = base.split("&");
+            String expireTimeMillis = temp[0];
+            String userid = temp[1];
+            String deviceid = temp[2];
+
+            if(!reqUSERID.equals(userid)){
+                return false;
+            }
+            // userid & license_secretKey 해쉬키값 비교
+            String compareHash = OAuth2Util.getHmacSha256(expireTimeMillis + "&" + userid + "&" + deviceid).substring(0, 16);
+            if (!compareHash.equals(clientHash)) {
+                return false;
+            }
+
+            // 토큰 유효시간 검증
+            long long_expireTimeMillis = Long.parseLong(expireTimeMillis);
+            if (long_expireTimeMillis < System.currentTimeMillis()) {
+                // 유효시간 만료 에러 처리
+                return false;
+            }
+
+        }catch (Exception e){
+            e.printStackTrace();
+            return false;
+
+        }
+        return true;
     }
 
     public void webSocketPublish2Subscribers(PublishEvent evt){

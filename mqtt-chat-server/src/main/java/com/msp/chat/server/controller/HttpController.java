@@ -6,7 +6,7 @@ import java.util.Map;
 /**
  * Created by Y.B.H(mium2) on 16. 7. 27..
  */
-public class PushHttpController{
+public class HttpController {
 
     public JsonObject getConnectCnt(Map<String,String> reqMap) throws Exception{
         JsonObject rootbject = new JsonObject();

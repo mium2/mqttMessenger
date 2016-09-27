@@ -18,7 +18,7 @@ import java.util.Properties;
  * Created by Y.B.H(mium2) on 16. 7. 27..
  */
 public class NettyHttpAcceptor{
-    private static final Logger LOG = LoggerFactory.getLogger(NettyHttpAcceptor.class);
+    private static final Logger LOG = LoggerFactory.getLogger("server");
 
     //BytesMetricsCollector m_metricsCollector = new BytesMetricsCollector();
     EventLoopGroup m_bossGroup;

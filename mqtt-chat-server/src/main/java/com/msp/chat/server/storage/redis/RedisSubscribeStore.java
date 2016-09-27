@@ -22,9 +22,9 @@ public class RedisSubscribeStore implements ISubscribeStore {
     private Gson gson = new Gson();
 
     public String APPID = null;
-    public final static String REDIS_SUBSCRIBE = "SUBSCRIBE";
+    public final static String REDIS_SUBSCRIBE = "H_SUBSCRIBE";
     // 메신저에서 만든 대화방 키테이블
-    public final static String REDIS_ROOMID_SUBSCRUBE = "ROOMID_SUBSCRIBE";
+    public final static String REDIS_ROOMID_SUBSCRUBE = "H_ROOMID_SUBSCRIBE";
 
     @Autowired(required = true)
     private RedisTemplate masterRedisTemplate;

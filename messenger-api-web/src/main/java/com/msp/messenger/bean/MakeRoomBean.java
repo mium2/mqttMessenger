@@ -9,6 +9,8 @@ public class MakeRoomBean {
     private String USERID = "";
     private String INVITE_USERIDS = "";
     private String ROOMID = "";
+    private String ROOMNAME = "";
+    private String ROOMTYPE = "";
 
 
     public String getAUTHKEY() {
@@ -49,5 +51,21 @@ public class MakeRoomBean {
 
     public void setROOMID(String ROOMID) {
         this.ROOMID = ROOMID;
+    }
+
+    public String getROOMTYPE() {
+        return ROOMTYPE;
+    }
+
+    public void setROOMTYPE(String ROOMTYPE) {
+        this.ROOMTYPE = ROOMTYPE;
+    }
+
+    public String getROOMNAME() {
+        return ROOMNAME;
+    }
+
+    public void setROOMNAME(String ROOMNAME) {
+        this.ROOMNAME = ROOMNAME;
     }
 }

@@ -1,10 +1,10 @@
+import com.msp.messenger.util.HexUtil;
+import org.apache.commons.codec.binary.Hex;
+
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * Created by IntelliJ IDEA.
@@ -42,10 +42,45 @@ public class TestMain {
 //        System.out.println("#### "+basicPushUserBean.toString());
 
 //        DateUtil.getMakeTimeStamp(8,0);
+
+        new TestMain().makeChatRoomID();
     }
 
 
     public TestMain(){}
+
+
+    private void makeChatRoomID(){
+        TreeSet<Object> reqInviteUserIDTreeSet = new TreeSet<Object>();
+        reqInviteUserIDTreeSet.add("TEST222222");
+        reqInviteUserIDTreeSet.add("TEST111111");
+
+        StringBuffer sb = new StringBuffer();
+        for(Object userIDObj : reqInviteUserIDTreeSet){
+            sb.append(userIDObj.toString());
+        }
+//        int sumByte = 0;
+//        System.out.println("MD5값" + HexUtil.getMD5(sb.toString()));
+//        System.out.println("SHA128" + HexUtil.getSHA1(sb.toString()));
+//        char[] chatRoomChars = Hex.encodeHex(sb.toString().getBytes());
+        String makeRoomID = HexUtil.getMD5(sb.toString());
+        char[] hexRoomID = Hex.encodeHex(sb.toString().getBytes());
+
+        System.out.println("##### makeRoomID:"+makeRoomID);
+
+        String groupMakeRoomID = HexUtil.getMD5("TEST111111"+System.currentTimeMillis());
+        byte[] TokenAsBytes = new byte[groupMakeRoomID.length() / 2];
+
+        groupMakeRoomID = groupMakeRoomID.toUpperCase();
+
+
+//        byte[] cuidByteArr = charRoomString.getBytes();
+//        for (int i = 0; i < cuidByteArr.length; i++) {
+//            int aaa = cuidByteArr[i];
+//            System.out.println("#### aaa :"+aaa);
+//            sumByte += aaa;
+//        }
+    }
 
 
 

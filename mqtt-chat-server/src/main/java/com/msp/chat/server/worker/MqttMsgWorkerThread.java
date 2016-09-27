@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Created by Y.B.H(mium2) on 16. 7. 20..
+ * 발송자 or 다른브로커서버가 브로커에게 전달한 메세지 처리
  */
 public class MqttMsgWorkerThread extends Thread{
     private Logger LOGGER = LoggerFactory.getLogger(this.getClass().getName());

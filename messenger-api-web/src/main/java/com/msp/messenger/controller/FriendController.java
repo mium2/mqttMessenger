@@ -42,33 +42,40 @@ public class FriendController {
             return responseJson(resultHeadMap,resultBodyMap, reqFriendModelBean.getAPPID());
         }
         try {
+            // ###################### 토큰 인증 결과 처리 시작 #############################
             resultHeadMap = (Map<String, String>) request.getAttribute("authResultMap");
-            if (resultHeadMap.get(Constants.RESULT_CODE_KEY).equals(Constants.RESULT_CODE_OK)) {  //인증에러가 아닐 경우만 비즈니스 로직 수행
-                // 친구찾기를 요청한 핸드폰번호로 메신저에 가입한 사용자 정보를 찾아 핸드폰번호와 유저아이디 정보를 넘겨준다.
-                Set<Object> hpNumSet = new HashSet<Object>();
-                StringTokenizer st = new StringTokenizer(reqFriendModelBean.getFRIEND_HPLIST(), ",");
-                while (st.hasMoreTokens()) {
-                    hpNumSet.add(st.nextToken().trim());
-                }
-                if (hpNumSet.size() == 0) {
-                    resultHeadMap.put(Constants.RESULT_CODE_KEY, Constants.ERR_1001);
-                    resultHeadMap.put(Constants.RESULT_MESSAGE_KEY, Constants.ERR_1001_MSG + "(찾을 친구 연락처가 없습니다.)");
-                    return responseJson(resultHeadMap, resultBodyMap, reqFriendModelBean.getAPPID());
-                }
+            //인증에러가 아닐 경우만 비즈니스 로직 수행
+            if (!resultHeadMap.get(Constants.RESULT_CODE_KEY).equals(Constants.RESULT_CODE_OK)) { // 토큰인증체크
+                return responseJson(resultHeadMap, resultBodyMap, reqFriendModelBean.getAPPID()); // 인증 실패 처리
+            }
+            String userId = resultHeadMap.get("USERID");
+            resultHeadMap.remove("USERID"); //토큰에서 추출한 정보를 응답데이터에 넘기지 않기 위해
+            // ###################### 토큰 인증결과 처리 마침 ###############################
 
-                List<UserInfoBean> userInfoBeans = redisUserService.multiGetUserInfoFromHpNumset(reqFriendModelBean.getAPPID(), hpNumSet);
 
-                Map<String, String> makeFriendMap = new HashMap<String, String>();
-                for (UserInfoBean userInfoBean : userInfoBeans) {
-                    String userID = userInfoBean.getUSERID();
-                    String hp_num = userInfoBean.getHP_NUM();
-                    makeFriendMap.put(hp_num, userID);
-                }
-
-                resultBodyMap.put("friendMap", makeFriendMap);
-            } else {
+            // 친구찾기를 요청한 핸드폰번호로 메신저에 가입한 사용자 정보를 찾아 핸드폰번호와 유저아이디 정보를 넘겨준다.
+            Set<Object> hpNumSet = new HashSet<Object>();
+            StringTokenizer st = new StringTokenizer(reqFriendModelBean.getFRIEND_HPLIST(), ",");
+            while (st.hasMoreTokens()) {
+                hpNumSet.add(st.nextToken().trim());
+            }
+            if (hpNumSet.size() == 0) {
+                resultHeadMap.put(Constants.RESULT_CODE_KEY, Constants.ERR_1001);
+                resultHeadMap.put(Constants.RESULT_MESSAGE_KEY, Constants.ERR_1001_MSG + "(찾을 친구 연락처가 없습니다.)");
                 return responseJson(resultHeadMap, resultBodyMap, reqFriendModelBean.getAPPID());
             }
+
+            List<UserInfoBean> userInfoBeans = redisUserService.multiGetUserInfoFromHpNumset(reqFriendModelBean.getAPPID(), hpNumSet);
+
+            Map<String, String> makeFriendMap = new HashMap<String, String>();
+            for (UserInfoBean userInfoBean : userInfoBeans) {
+                String userID = userInfoBean.getUSERID();
+                String hp_num = userInfoBean.getHP_NUM();
+                makeFriendMap.put(hp_num, userID);
+            }
+
+            resultBodyMap.put("friendMap", makeFriendMap);
+
         }catch (Exception e){
             resultHeadMap.put(Constants.RESULT_CODE_KEY, Constants.ERR_500);
             resultHeadMap.put(Constants.RESULT_MESSAGE_KEY, e.getMessage());

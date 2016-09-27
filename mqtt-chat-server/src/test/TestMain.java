@@ -1,8 +1,19 @@
+import ch.qos.logback.classic.LoggerContext;
+import ch.qos.logback.classic.joran.JoranConfigurator;
+import ch.qos.logback.core.joran.spi.JoranException;
+import com.msp.chat.server.commons.utill.BrokerConfig;
 import com.msp.chat.server.commons.utill.DebugUtils;
+import com.msp.chat.server.config.ApplicationConfig;
 import com.msp.chat.server.storage.redis.RedisStorageService;
 import org.apache.commons.codec.binary.Hex;
+import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.io.FileUtils;
 import org.junit.Test;
+import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.types.RedisClientInfo;
 
 import javax.imageio.ImageIO;
 import java.awt.*;
@@ -15,75 +26,145 @@ import java.nio.CharBuffer;
 import java.nio.IntBuffer;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.TreeSet;
+import java.util.*;
 
 /**
  * Created by Y.B.H(mium2) on 16. 4. 11..
  */
 public class TestMain {
+	public final static String SERVER_CONF_FILE = "./config/config.xml";
+	public final static String LOG_CONF_FILE = "./config/logback.xml";
+	public static ApplicationContext ctx = null;
 	public TestMain(){
+		//Logger 설정
+		LoggerContext context = (LoggerContext) LoggerFactory.getILoggerFactory();
+		try {
+			JoranConfigurator configurator = new JoranConfigurator();
+			configurator.setContext(context);
+			context.reset();
+			configurator.doConfigure(LOG_CONF_FILE);
+		} catch (JoranException je) {
+			je.printStackTrace();
+			return;
+		}
+		//브로커서버 config 설정 로드
+		try {
+			BrokerConfig.Load(SERVER_CONF_FILE);
+		}catch(ConfigurationException e) {
+			return;
+		}
+		ctx = new AnnotationConfigApplicationContext(ApplicationConfig.class);  //스프링 Config 호출
+	}
+
+	public static void main(String[] args){
+
+		TestMain testMain = new TestMain();
+//        testMain.testSplit();
+		testMain.redisTest();
 
 	}
 
-    @Test
-	public static void main(String[] args){
-		TestMain testMain = new TestMain();
-        testMain.makeThumnail();
-//		testMain.testByteBuffer();
-//		testMain.testByteToString();
-//
-//		testMain.makeChatRoom();
-//
-//		try {
-//			System.out.println(testMain.getHexString());
-//		} catch (UnsupportedEncodingException e) {
-//			e.printStackTrace();
-//		}
-//		List<String> cuids = new ArrayList<String>();
-//		cuids.add("가가가가가");
-//		cuids.add("나나나나나");
-//		cuids.add("다다다다다");
-//		cuids.add("라라라라라");
-//		cuids.add("마마마마마");
-//		MakeChatRoom makeChatRoom = new MakeChatRoom("테스트룸","별칭테스트룸",cuids);
-//		System.out.println("byte : "+makeChatRoom.getMakeChatRoomByte());
-//		System.out.println("String : "+new String(makeChatRoom.getMakeChatRoomByte()));
-//
-//		System.out.println("Byte To Int :"+byteToInt(intTobyte(1234)));
-//
-//		System.out.println("###### 111111");
-//
-//		try {
-//			Thread.sleep(1000);
-//		} catch (InterruptedException e) {
-//			e.printStackTrace();
-//		}
-//
-//		try {
-//			testMain.testException();
-//		} catch (Exception e) {
-//			e.printStackTrace();
-//		}
-//
-//		for(int i=0; i<100; i++){
-//			System.out.println("#### i = "+i);
+	private void redisTest(){
+		TestRedisWrite testRedisWrite = new TestRedisWrite();
+		testRedisWrite.start();
+//		while(true){
 //			try {
-//				Thread.sleep(1000);
+//				Thread.sleep(30000);
+//				TestRedisWrite2 testRedisWrite2 = new TestRedisWrite2();
+//				testRedisWrite2.start();
+//			} catch (InterruptedException e) {
+//				e.printStackTrace();
+//			}
+//
+//			try {
+//				Thread.sleep(3600000);
 //			} catch (InterruptedException e) {
 //				e.printStackTrace();
 //			}
 //		}
-//
-//		testMain.makeChatRoomID();
-//
-//		RedisStorageService redisStorageService = new RedisStorageService();
-//		redisStorageService.upPubMsgAckCnt("SENDER01",1);
+		TestRedisWrite2 testRedisWrite2 = new TestRedisWrite2();
+		testRedisWrite2.start();
 
-//        System.out.println(System.currentTimeMillis());
+		TestRedisWrite3 testRedisWrite3 = new TestRedisWrite3();
+		testRedisWrite3.start();
 	}
+
+	class TestRedisWrite extends Thread{
+		Object obj = ctx.getBean("masterRedisTemplate");
+		RedisTemplate masterRedisTemplate = (RedisTemplate)obj;
+
+		@Override
+		public void run() {
+			long startMiliTime = System.currentTimeMillis();
+			String KeyTable = "H_TEST";
+			String putMsg = "{\"aaa\":\"111\",\"bbb\":\"222\",\"ccc\":\"333\"}";
+//			masterRedisTemplate.setEnableTransactionSupport(false);
+			for(int i=0; i<100000; i++){
+				masterRedisTemplate.opsForHash().put(KeyTable, "KEY_" + i, putMsg + "_" + i);
+			}
+			long ElapsedTime = System.currentTimeMillis()-startMiliTime;
+
+			System.out.println("### 경과시간1 : "+ElapsedTime);
+		}
+	}
+
+	class TestRedisWrite2 extends Thread{
+		Object obj = ctx.getBean("masterRedisTemplate");
+		RedisTemplate masterRedisTemplate = (RedisTemplate)obj;
+
+		@Override
+		public void run() {
+			long startMiliTime = System.currentTimeMillis();
+			String KeyTable = "H_TEST";
+			String putMsg = "{\"aaa\":\"111\",\"bbb\":\"222\",\"ccc\":\"333\"}";
+			for(int i=100000; i<200000; i++){
+				masterRedisTemplate.opsForHash().put(KeyTable, "KEY_" + i, putMsg + "_" + i);
+			}
+			long ElapsedTime = System.currentTimeMillis()-startMiliTime;
+
+			System.out.println("### 경과시간2 : "+ElapsedTime);
+		}
+	}
+
+	class TestRedisWrite3 extends Thread{
+		Object obj = ctx.getBean("masterRedisTemplate");
+		RedisTemplate masterRedisTemplate = (RedisTemplate)obj;
+
+		@Override
+		public void run() {
+			long startMiliTime = System.currentTimeMillis();
+			String KeyTable = "H_TEST";
+			String putMsg = "{\"aaa\":\"111\",\"bbb\":\"222\",\"ccc\":\"333\"}";
+			for(int i=200000; i<300000; i++){
+				masterRedisTemplate.opsForHash().put(KeyTable, "KEY_" + i, putMsg + "_" + i);
+			}
+			long ElapsedTime = System.currentTimeMillis()-startMiliTime;
+
+			System.out.println("### 경과시간3 : "+ElapsedTime);
+		}
+	}
+
+	private void testSplit(){
+        String splitString = "/images";
+        String[] arr1 = splitString.split("/");
+        System.out.println("### arr1 length:"+arr1.length);
+        System.out.println("### arr1 length:"+arr1.length +"  arr1[0]:"+arr1[0]+"    arr1[1]:"+arr1[1]);
+
+        String splitString2 = "/images/";
+        String[] arr2 = splitString2.split("/");
+        System.out.println("### arr2 length:"+arr2.length +"  arr2[0]:"+arr2[0]+"    arr2[1]:"+arr2[1]);
+
+
+        String splitString3 = "/images/etc";
+        String[] arr3 = splitString3.split("/");
+        System.out.println("### arr3 length:"+arr3.length);
+        System.out.println("### arr3 length:"+arr3.length +"  arr3[0]:"+arr3[0]+"    arr3[1]:"+arr3[1]);
+
+        String splitString4 = "/images/etc/";
+        String[] arr4 = splitString4.split("/");
+        System.out.println("### arr4 length:"+arr4.length);
+        System.out.println("### arr4 length:"+arr4.length +"  arr4[0]:"+arr4[0]+"    arr4[1]:"+arr4[1]);
+    }
 
 	private void makeChatRoomID(){
         ArrayList<String> cuids = new ArrayList<String>();

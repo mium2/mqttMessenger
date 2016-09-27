@@ -10,6 +10,7 @@
     <context:component-scan base-package="com.msp.messenger"/>
 
     <mvc:resources mapping="/download_file/**" location="/download_file/" />
+    <mvc:resources mapping="/resources/**" location="/resources/" />
 
     <bean id="myProperties" class="org.springframework.beans.factory.config.PropertiesFactoryBean">
 	  <property name="locations">
@@ -22,6 +23,12 @@
 	<bean id="propertyConfigurer" class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
 	    <property name="properties" ref="myProperties" />
 	</bean>
+
+    <bean id="multipartResolver"
+                class="org.springframework.web.multipart.commons.CommonsMultipartResolver">
+        <property name="maxUploadSize" value="2000000000"/>
+        <property name="defaultEncoding" value="UTF-8"/>
+    </bean>
 
     <!-- Datasource 정의 -->
     <bean id="dataSource" class="org.springframework.jndi.JndiObjectFactoryBean">
@@ -65,15 +72,16 @@
           c:host="${redis.master.hostName}"
           c:port="${redis.master.port}"
           p:name="mymaster"/>
+<!--
 
-    <!-- Sentinels -->
+    &lt;!&ndash; Sentinels &ndash;&gt;
     <bean id="mySent1" class= "org.springframework.data.redis.connection.RedisNode" c:host="${sentinel.ip1}" c:port="${sentinel.port1}"/>
-    <!--<bean id="mySent2" class= "org.springframework.data.redis.connection.RedisNode" c:host="${sentinel.ip2}" c:port="${sentinel.port2}"/>-->
+    &lt;!&ndash;<bean id="mySent2" class= "org.springframework.data.redis.connection.RedisNode" c:host="${sentinel.ip2}" c:port="${sentinel.port2}"/>&ndash;&gt;
     <bean id="mySents" class= "java.util.HashSet">
         <constructor-arg>
             <list>
                 <ref bean="mySent1"/>
-                <!--<ref bean="mySent2"/>-->
+                &lt;!&ndash;<ref bean="mySent2"/>&ndash;&gt;
             </list>
         </constructor-arg>
     </bean>
@@ -82,7 +90,7 @@
           p:master-ref="myMaster"
           p:mySentinels-ref="mySents"/>
 
-    <!--2.2.3 POOL & Connection-->
+    &lt;!&ndash;2.2.3 POOL & Connection&ndash;&gt;
     <bean id="jedisPoolConfig" class="redis.clients.jedis.JedisPoolConfig"/>
     <bean id="jedisConnFactory" class="org.springframework.data.redis.connection.jedis.JedisConnectionFactory"
           p:usePool="true"
@@ -92,7 +100,7 @@
           c:sentinelConfig-ref="redisSentinelConf"
             />
 
-    <!-- redis template definition -->
+    &lt;!&ndash; redis template definition &ndash;&gt;
     <bean id="masterRedisTemplate"
           class="org.springframework.data.redis.core.RedisTemplate"
           p:connectionFactory-ref="jedisConnFactory"
@@ -132,11 +140,12 @@
           p:hashValueSerializer-ref="stringRedisSerializer">
         <qualifier value="slaveRedisTemplate"/>
         </bean>
+-->
 
 
 
     <!-- Put/Remove Master Redis-->
-<!--    <bean id="masterRedisPoolConfig" class="redis.clients.jedis.JedisPoolConfig">
+    <bean id="masterRedisPoolConfig" class="redis.clients.jedis.JedisPoolConfig">
         <property name="maxTotal" value="2"/>
         <property name="maxWaitMillis" value="3000"/>
         <property name="maxIdle" value="50"/>
@@ -175,5 +184,5 @@
         <property name="hashKeySerializer" ref="stringRedisSerializer"/>
         <property name="hashValueSerializer" ref="stringRedisSerializer"/>
         <property name="stringSerializer" ref="stringRedisSerializer"/>
-    </bean>-->
+    </bean>
 </beans>

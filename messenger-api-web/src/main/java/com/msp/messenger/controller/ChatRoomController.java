@@ -36,98 +36,124 @@ public class ChatRoomController {
     @Autowired(required = true)
     PushHttpCallService pushHttpCallService;
 
+    /**
+     * 설명 : 챗팅방 타입은 두가지로 나눌 수 있는데.
+     * 첫번째 1:1방.  요건 : 해당방은 두명의 유저아이디로 항상 동일한 룸아이디를 만들어야 한다.
+     * 두번째 그룹방.  요건 : 해당 룸아이디는 유저아이디와 상관없이 룸아이디를 고유하게 만들어 초대하고 나가도 룸아이디 변화가 없어야 한다.
+     * ROOMTYPE : E ==> 1:1챗팅방, G ==> 그룹방
+     * @param request
+     * @param response
+     * @param makeRoomBean
+     * @return
+     */
     @RequestMapping(value = "/makeChatRoom.ctl",produces = "application/json; charset=utf8")
     public @ResponseBody
     String makeChatRoom(HttpServletRequest request, HttpServletResponse response, @ModelAttribute MakeRoomBean makeRoomBean){
         Map<String,String> resultHeadMap = new HashMap<String, String>();
         Map<String,Object> resultBodyMap = new HashMap<String, Object>();
 
-        if(makeRoomBean.getUSERID().equals("") || makeRoomBean.getAPPID().equals("") || makeRoomBean.getINVITE_USERIDS().equals("")){
+        if(makeRoomBean.getINVITE_USERIDS().equals("") || makeRoomBean.getROOMTYPE().equals("") || makeRoomBean.getROOMNAME().equals("")){
             resultHeadMap.put(Constants.RESULT_CODE_KEY,Constants.ERR_1000);
             resultHeadMap.put(Constants.RESULT_MESSAGE_KEY,Constants.ERR_1000_MSG);
             return responseJson(resultHeadMap,resultBodyMap, makeRoomBean.getAPPID());
         }
         try {
+            // ###################### 토큰 인증 결과 처리 시작 #############################
             resultHeadMap = (Map<String, String>) request.getAttribute("authResultMap");
-            if (resultHeadMap.get(Constants.RESULT_CODE_KEY).equals(Constants.RESULT_CODE_OK)) {  //인증에러가 아닐 경우만 비즈니스 로직 수행
-                TreeSet<Object> reqInviteUserIDTreeSet = new TreeSet<Object>();
+            //인증에러가 아닐 경우만 비즈니스 로직 수행
+            if (!resultHeadMap.get(Constants.RESULT_CODE_KEY).equals(Constants.RESULT_CODE_OK)) { // 토큰인증체크
+                return responseJson(resultHeadMap, resultBodyMap, makeRoomBean.getAPPID()); // 인증 실패 처리
+            }
+            String userId = resultHeadMap.get("USERID");
+            resultHeadMap.remove("USERID"); //토큰에서 추출한 정보를 응답데이터에 넘기지 않기 위해
+            // ###################### 토큰 인증결과 처리 마침 ###############################
+
+            String createdRoomID = null;
+            String roomOwnerUserid = "";
+            String roomOwnerNicname = "";
+            TreeSet<Object> reqInviteUserIDTreeSet = new TreeSet<Object>(); // 초대유저 TreeSet
+            makeRoomBean.setUSERID(userId); // 방만들기 요청
+
+            // 푸쉬발송
+            Set<String> pushSendUseridSet = new HashSet<String>();
+            List<Object> userIDs = new ArrayList<Object>();
+            List<String> userIDs_BrokerIDs = new ArrayList<String>();
+            List<Object> hpNums = new ArrayList<Object>();
+
+            // 1:1방 만들기
+            if(makeRoomBean.getROOMTYPE().equals("E")){
+                reqInviteUserIDTreeSet.add(userId);
+                reqInviteUserIDTreeSet.add(makeRoomBean.getINVITE_USERIDS());
+                createdRoomID = makeOneToOneChatRoomID(reqInviteUserIDTreeSet);
+            // 그룹방 만들기
+            }else if(makeRoomBean.getROOMTYPE().equals("G")){
+                // 그룹 챗팅방ID를 만들기 요청
+                createdRoomID = makeGroupChatRoomID(makeRoomBean.getAPPID(),userId);
                 StringTokenizer st = new StringTokenizer(makeRoomBean.getINVITE_USERIDS(),",");
-                while (st.hasMoreTokens()){
+                while(st.hasMoreTokens()){
                     reqInviteUserIDTreeSet.add(st.nextToken().trim());
                 }
-                reqInviteUserIDTreeSet.add(makeRoomBean.getUSERID().trim());
-                Set<String> pushSendUseridSet = new HashSet<String>();
-                List<Object> userIDs = new ArrayList<Object>();
-                List<String> userIDs_BrokerIDs = new ArrayList<String>();
-                List<Object> hpNums = new ArrayList<Object>();
-                String roomOwnerUserid = makeRoomBean.getUSERID();
-                String roomOwnerNicname = makeRoomBean.getUSERID();
-
-                TreeSet<Object> inviteUserIDTreeSet = new TreeSet<Object>();
-                if(reqInviteUserIDTreeSet.size()>1){
-                    // 초대한 유저아이디가 실질적으로 메신저서비스 가입되어 있는지 확인.
-                    List<UserInfoBean> userInfoBeans = redisUserService.multiGetUserInfoFromUserIdset(makeRoomBean.getAPPID(),reqInviteUserIDTreeSet);
-                    // 초대한 유저아이디갯수와 실직적으로 메신저서비스 가입되어 있는 유저수가 다를 경우 메신저 서비스에 가입되어 있는 유저만 대화방에 등록함.
-                    for(UserInfoBean userInfoBean : userInfoBeans){
-                        String db_userID = userInfoBean.getUSERID();
-                        String db_hpNum = userInfoBean.getHP_NUM();
-                        inviteUserIDTreeSet.add(db_userID);
-                        userIDs.add(db_userID);
-                        userIDs_BrokerIDs.add(db_userID+"|"+userInfoBean.getBROKER_ID());
-                        hpNums.add(db_hpNum);
-                        if(!userInfoBean.getPUSH_TOKEN().equals("")){
-                            // 푸시토큰을 등록한 사용자에 대화방 초대메세지를 보내기 위해
-                            pushSendUseridSet.add(db_userID);
-                        }
-                        if(roomOwnerUserid.equals(db_userID)){
-                            roomOwnerNicname = userInfoBean.getNICKNAME();
-                        }
-                    }
-                }
-                // 2인 이유는 본인 포함이므로...
-                if(inviteUserIDTreeSet.size()<2){
-                    resultHeadMap.put(Constants.RESULT_CODE_KEY, Constants.ERR_1001);
-                    resultHeadMap.put(Constants.RESULT_MESSAGE_KEY, Constants.ERR_1001_MSG+"(서비스에 가입된 초대유저가 없습니다.)");
-                    return responseJson(resultHeadMap, resultBodyMap, makeRoomBean.getAPPID());
-                }
-                String chatRoomID = makeChatRoomID(inviteUserIDTreeSet);
-                makeRoomBean.setROOMID(chatRoomID);
-                //이미 만들어진 채팅방을 또 만드는지 검증
-                String checkRoomID = redisUserService.isExistChatRoomTopic(makeRoomBean,inviteUserIDTreeSet.size());
-                if(checkRoomID==null) {
-                    // 신규생성
-                    if (checkRoomID == null) {
-                        checkRoomID = chatRoomID;
-                    }
-                    makeRoomBean.setROOMID(checkRoomID);
-                    // 챗팅방 만들기
-                    redisUserService.makeChatRoom(makeRoomBean, userIDs, userIDs_BrokerIDs, hpNums, inviteUserIDTreeSet);
-                    // 푸시를 이용하여 해당 사용자에 초대 메세지를 보낸다.
-                    StringBuilder sb = new StringBuilder();
-                    sb.append("[");
-                    sb.append(roomOwnerNicname);
-                    sb.append("]님이 대화방에 초대하였습니다.");
-                    pushHttpCallService.pushSend(pushSendUseridSet, sb.toString(), makeRoomBean.getAPPID());
-                }else if(checkRoomID.equals("R_"+chatRoomID)){
-                    // 이미 생성되어 있으나 방을 나간 유저가 있어 다시 해당 유저를 롤백시켜서 등록해야함.
-                    makeRoomBean.setROOMID(checkRoomID);
-                    // 챗팅방 다시 만들기
-                    Set<String> reEntryUsers = redisUserService.reMakeChatRoom(makeRoomBean, userIDs, userIDs_BrokerIDs, hpNums, inviteUserIDTreeSet);
-                    // 푸시를 이용하여 재 등록사용자에게만 초대 메세지를 보낸다.
-                    StringBuilder sb = new StringBuilder();
-                    sb.append("[");
-                    sb.append(roomOwnerNicname);
-                    sb.append("]님이 대화방에 재초대하였습니다.");
-                    pushHttpCallService.pushSend(reEntryUsers, sb.toString(), makeRoomBean.getAPPID());
-                }else{
-                    resultHeadMap.put(Constants.RESULT_CODE_KEY, Constants.ERR_2003);
-                    resultHeadMap.put(Constants.RESULT_MESSAGE_KEY, Constants.ERR_2003_MSG);
-                }
-                resultBodyMap.put("chatRoomInfo",makeRoomBean);
-            } else {
+                reqInviteUserIDTreeSet.add(userId); //그룹방 만드는 자기 자신 추가.
+            }else{
+                // 에러 처리
+                resultHeadMap.put(Constants.RESULT_CODE_KEY, Constants.ERR_2004);
+                resultHeadMap.put(Constants.RESULT_MESSAGE_KEY, Constants.ERR_2004_MSG);
                 return responseJson(resultHeadMap, resultBodyMap, makeRoomBean.getAPPID());
             }
+
+            makeRoomBean.setROOMID(createdRoomID); // 만들어진 룸아이디를 set 한다.
+            TreeSet<Object> inviteUserIDTreeSet = new TreeSet<Object>();
+            List<UserInfoBean> userInfoBeans = redisUserService.multiGetUserInfoFromUserIdset(makeRoomBean.getAPPID(),reqInviteUserIDTreeSet);
+
+            // 초대한 유저아이디갯수와 실직적으로 메신저서비스 가입되어 있는 유저수가 다를 경우 메신저 서비스에 가입되어 있는 유저만 대화방에 등록함.
+            for(UserInfoBean userInfoBean : userInfoBeans){
+                String db_userID = userInfoBean.getUSERID();
+                String db_hpNum = userInfoBean.getHP_NUM();
+                inviteUserIDTreeSet.add(db_userID);
+                userIDs.add(db_userID);
+                userIDs_BrokerIDs.add(db_userID+"|"+userInfoBean.getBROKER_ID());
+                hpNums.add(db_hpNum);
+                if(!userInfoBean.getPUSH_TOKEN().equals("")){
+                    // 푸시토큰을 등록한 사용자에 대화방 초대메세지를 보내기 위해
+                    pushSendUseridSet.add(db_userID);
+                }
+                if(roomOwnerUserid.equals(db_userID)){
+                    roomOwnerNicname = userInfoBean.getNICKNAME();
+                }
+            }
+
+            // 여기서 그룹방일 경우는 유저수 체크하지 않고.. 1:1 챗팅방일 경우는 유저수 체크하는 로직을 넣어야 한다.
+            if("E".equals(makeRoomBean.getROOMTYPE())){
+                // 이미 만들어져 있는 1:1방인지 검증
+                ChatRoomInfoBean chatRoomInfoBean = redisUserService.isExistChatRoom(makeRoomBean);
+                if(chatRoomInfoBean!=null){
+                    resultHeadMap.put(Constants.RESULT_CODE_KEY, Constants.ERR_2003);
+                    resultHeadMap.put(Constants.RESULT_MESSAGE_KEY, Constants.ERR_2003_MSG);
+                    resultBodyMap.put("chatRoomInfo",makeRoomBean);
+                    return responseJson(resultHeadMap, resultBodyMap, makeRoomBean.getAPPID());
+                }
+                if(userInfoBeans.size()<=1){
+                    // 1:1방에서 초대유저가 실질적으로 서비스 가입이 되어 있지 않은 경우 에러처리
+                    resultHeadMap.put(Constants.RESULT_CODE_KEY, Constants.ERR_2006);
+                    resultHeadMap.put(Constants.RESULT_MESSAGE_KEY, Constants.ERR_2006_MSG);
+                    return responseJson(resultHeadMap, resultBodyMap, makeRoomBean.getAPPID());
+                }
+            }
+
+            // 챗팅방 만들기.
+            redisUserService.makeChatRoom(makeRoomBean, userIDs, userIDs_BrokerIDs, hpNums, inviteUserIDTreeSet);
+
+            // 푸시를 이용하여 해당 사용자에 초대 메세지를 보낸다.
+            pushSendUseridSet.remove(userId); //방을 만든 아이디는 푸시발송에서 제외시킴.
+            StringBuilder sb = new StringBuilder();
+            sb.append("[");
+            sb.append(roomOwnerNicname);
+            sb.append("]님이 대화방에 초대하였습니다.");
+            pushHttpCallService.pushSend(pushSendUseridSet, sb.toString(), makeRoomBean.getAPPID(),makeRoomBean.getROOMID());
+            resultBodyMap.put("chatRoomInfo",makeRoomBean);
+
         }catch (Exception e){
+            e.printStackTrace();
             resultHeadMap.put(Constants.RESULT_CODE_KEY, Constants.ERR_500);
             resultHeadMap.put(Constants.RESULT_MESSAGE_KEY, e.getMessage());
             return responseJson(resultHeadMap, resultBodyMap, makeRoomBean.getAPPID());
@@ -143,22 +169,28 @@ public class ChatRoomController {
         Map<String,Object> resultBodyMap = new HashMap<String, Object>();
 
         String req_APPID = request.getParameter("APPID");
-        String req_USERID = request.getParameter("USERID");
 
-        if(req_APPID==null || req_APPID.equals("") || req_USERID==null || req_USERID.equals("")){
+        if(req_APPID==null || req_APPID.equals("")){
             resultHeadMap.put(Constants.RESULT_CODE_KEY,Constants.ERR_1000);
             resultHeadMap.put(Constants.RESULT_MESSAGE_KEY,Constants.ERR_1000_MSG);
             return responseJson(resultHeadMap,resultBodyMap, req_APPID);
         }
         try {
+            // ###################### 토큰 인증 결과 처리 시작 #############################
             resultHeadMap = (Map<String, String>) request.getAttribute("authResultMap");
-            if (resultHeadMap.get(Constants.RESULT_CODE_KEY).equals(Constants.RESULT_CODE_OK)) {  //인증에러가 아닐 경우만 비즈니스 로직 수행
-                List<ChatRoomInfoBean> chatRoomInfoJsonList = redisUserService.getChatRoomList(req_APPID, req_USERID);
-                resultBodyMap.put("roomInfoList",chatRoomInfoJsonList);
-            } else {
-                return responseJson(resultHeadMap, resultBodyMap, req_APPID);
+            //인증에러가 아닐 경우만 비즈니스 로직 수행
+            if (!resultHeadMap.get(Constants.RESULT_CODE_KEY).equals(Constants.RESULT_CODE_OK)) { // 토큰인증체크
+                return responseJson(resultHeadMap, resultBodyMap, req_APPID); // 인증 실패 처리
             }
+            String userId = resultHeadMap.get("USERID");
+            resultHeadMap.remove("USERID"); //토큰에서 추출한 정보를 응답데이터에 넘기지 않기 위해
+            // ###################### 토큰 인증결과 처리 마침 ###############################
+
+            List<ChatRoomInfoBean> chatRoomInfoJsonList = redisUserService.getChatRoomList(req_APPID, userId);
+            resultBodyMap.put("roomInfoList",chatRoomInfoJsonList);
+
         }catch (Exception e){
+            e.printStackTrace();
             resultHeadMap.put(Constants.RESULT_CODE_KEY, Constants.ERR_500);
             resultHeadMap.put(Constants.RESULT_MESSAGE_KEY, e.getMessage());
             return responseJson(resultHeadMap, resultBodyMap, req_APPID);
@@ -173,22 +205,34 @@ public class ChatRoomController {
         Map<String,Object> resultBodyMap = new HashMap<String, Object>();
 
         String req_APPID = request.getParameter("APPID");
-        String req_USERID = request.getParameter("USERID");
         String req_ROOMID = request.getParameter("ROOMID");
 
-        if(req_APPID==null || req_APPID.equals("") || req_USERID==null || req_USERID.equals("") || req_ROOMID==null || req_ROOMID.equals("")){
+        if(req_APPID==null || req_APPID.equals("") || req_ROOMID==null || req_ROOMID.equals("")){
             resultHeadMap.put(Constants.RESULT_CODE_KEY,Constants.ERR_1000);
             resultHeadMap.put(Constants.RESULT_MESSAGE_KEY,Constants.ERR_1000_MSG);
             return responseJson(resultHeadMap,resultBodyMap, req_APPID);
         }
         try {
+            // ###################### 토큰 인증 결과 처리 시작 #############################
             resultHeadMap = (Map<String, String>) request.getAttribute("authResultMap");
-            if (resultHeadMap.get(Constants.RESULT_CODE_KEY).equals(Constants.RESULT_CODE_OK)) {  //인증에러가 아닐 경우만 비즈니스 로직 수행
-                ChatRoomInfoBean chatRoomInfoBean = redisUserService.getChatRoomDetailInfo(req_APPID, req_ROOMID);
-                resultBodyMap.put("roomDetailInfo",chatRoomInfoBean);
-            } else {
-                return responseJson(resultHeadMap, resultBodyMap, req_APPID);
+            //인증에러가 아닐 경우만 비즈니스 로직 수행
+            if (!resultHeadMap.get(Constants.RESULT_CODE_KEY).equals(Constants.RESULT_CODE_OK)) { // 토큰인증체크
+                return responseJson(resultHeadMap, resultBodyMap, req_APPID); // 인증 실패 처리
             }
+            String userId = resultHeadMap.get("USERID");
+            resultHeadMap.remove("USERID"); //토큰에서 추출한 정보를 응답데이터에 넘기지 않기 위해
+            // ###################### 토큰 인증결과 처리 마침 ###############################
+
+            // 비즈니스 로직수 행
+            ChatRoomInfoBean chatRoomInfoBean = redisUserService.getChatRoomDetailInfo(req_APPID, req_ROOMID);
+            if(chatRoomInfoBean==null){
+                resultHeadMap.put(Constants.RESULT_CODE_KEY, Constants.ERR_2007);
+                resultHeadMap.put(Constants.RESULT_MESSAGE_KEY, Constants.ERR_2007_MSG);
+                return responseJson(resultHeadMap, resultBodyMap, req_APPID);
+            }else {
+                resultBodyMap.put("roomDetailInfo", chatRoomInfoBean);
+            }
+
         }catch (Exception e){
             resultHeadMap.put(Constants.RESULT_CODE_KEY, Constants.ERR_500);
             resultHeadMap.put(Constants.RESULT_MESSAGE_KEY, e.getMessage());
@@ -197,6 +241,12 @@ public class ChatRoomController {
         return responseJson(resultHeadMap,resultBodyMap, req_APPID);
     }
 
+    /**
+     * 대화방 삭제 : 그룹방일 경우 방장이 해당 그룹방을 삭제 할 수 있도록 처리.
+     * @param request
+     * @param response
+     * @return
+     */
     @RequestMapping(value="/chatRoomForceRemove.ctl",produces="application/json; charset=utf8")
     public @ResponseBody
     String chatRoomForceRemove(HttpServletRequest request, HttpServletResponse response){
@@ -204,21 +254,34 @@ public class ChatRoomController {
         Map<String,Object> resultBodyMap = new HashMap<String, Object>();
 
         String req_APPID = request.getParameter("APPID");
-        String req_USERID = request.getParameter("USERID");
         String req_ROOMID = request.getParameter("ROOMID");
 
-        if(req_APPID==null || req_APPID.equals("") || req_USERID==null || req_USERID.equals("") || req_ROOMID==null || req_ROOMID.equals("")){
+        if(req_APPID==null || req_APPID.equals("") || req_ROOMID==null || req_ROOMID.equals("")){
             resultHeadMap.put(Constants.RESULT_CODE_KEY,Constants.ERR_1000);
             resultHeadMap.put(Constants.RESULT_MESSAGE_KEY,Constants.ERR_1000_MSG);
             return responseJson(resultHeadMap,resultBodyMap, req_APPID);
         }
         try {
+            // ###################### 토큰 인증 결과 처리 시작 #############################
             resultHeadMap = (Map<String, String>) request.getAttribute("authResultMap");
-            if (resultHeadMap.get(Constants.RESULT_CODE_KEY).equals(Constants.RESULT_CODE_OK)) {  //인증에러가 아닐 경우만 비즈니스 로직 수행
-                redisUserService.forceRemoveChatRoom(req_APPID, req_ROOMID);
-            } else {
-                return responseJson(resultHeadMap, resultBodyMap, req_APPID);
+            //인증에러가 아닐 경우만 비즈니스 로직 수행
+            if (!resultHeadMap.get(Constants.RESULT_CODE_KEY).equals(Constants.RESULT_CODE_OK)) { // 토큰인증체크
+                return responseJson(resultHeadMap, resultBodyMap, req_APPID); // 인증 실패 처리
             }
+            String userId = resultHeadMap.get("USERID");
+            resultHeadMap.remove("USERID"); //토큰에서 추출한 정보를 응답데이터에 넘기지 않기 위해
+            // ###################### 토큰 인증결과 처리 마침 ###############################
+            ChatRoomInfoBean chatRoomInfoBean = redisUserService.getChatRoomDetailInfo(req_APPID,userId);
+            if(chatRoomInfoBean==null){
+                throw new Exception("존재하지 않는 대화방아이디 입니다.");
+            }else {
+                if(chatRoomInfoBean.getROOM_OWNER().equals(userId)) {
+                    redisUserService.forceRemoveChatRoom(req_APPID, req_ROOMID);
+                }else {
+                    throw new Exception("방장만이 해당 방을 삭제 할 수 있습니다.");
+                }
+            }
+
         }catch (Exception e){
             resultHeadMap.put(Constants.RESULT_CODE_KEY, Constants.ERR_500);
             resultHeadMap.put(Constants.RESULT_MESSAGE_KEY, e.getMessage());
@@ -227,6 +290,67 @@ public class ChatRoomController {
         return responseJson(resultHeadMap,resultBodyMap, req_APPID);
     }
 
+    /**
+     * 방장 변경 API
+     * @param request
+     * @param response
+     * @return
+     */
+    @RequestMapping(value="/changeRoomOwner.ctl",produces="application/json; charset=utf8")
+    public @ResponseBody
+    String chageRoomOwner(HttpServletRequest request, HttpServletResponse response){
+        Map<String,String> resultHeadMap = new HashMap<String, String>();
+        Map<String,Object> resultBodyMap = new HashMap<String, Object>();
+
+        String req_APPID = request.getParameter("APPID");
+        String req_ROOMID = request.getParameter("ROOMID");
+        String req_NEW_ROOM_OWNER = request.getParameter("NEW_ROOM_OWNER");
+
+        if(req_APPID==null || req_APPID.equals("") || req_ROOMID==null || req_ROOMID.equals("") || req_NEW_ROOM_OWNER==null || req_NEW_ROOM_OWNER.equals("")){
+            resultHeadMap.put(Constants.RESULT_CODE_KEY,Constants.ERR_1000);
+            resultHeadMap.put(Constants.RESULT_MESSAGE_KEY,Constants.ERR_1000_MSG);
+            return responseJson(resultHeadMap,resultBodyMap, req_APPID);
+        }
+        try {
+            // ###################### 토큰 인증 결과 처리 시작 #############################
+            resultHeadMap = (Map<String, String>) request.getAttribute("authResultMap");
+            //인증에러가 아닐 경우만 비즈니스 로직 수행
+            if (!resultHeadMap.get(Constants.RESULT_CODE_KEY).equals(Constants.RESULT_CODE_OK)) { // 토큰인증체크
+                return responseJson(resultHeadMap, resultBodyMap, req_APPID); // 인증 실패 처리
+            }
+            String userId = resultHeadMap.get("USERID");
+            resultHeadMap.remove("USERID"); //토큰에서 추출한 정보를 응답데이터에 넘기지 않기 위해
+            // ###################### 토큰 인증결과 처리 마침 ###############################
+            if(req_ROOMID.startsWith("E")){
+                throw new Exception("1:1방은 방장을 변경 할 수 없습니다.");
+            }
+
+            ChatRoomInfoBean chatRoomInfoBean = redisUserService.getChatRoomDetailInfo(req_APPID, userId);
+            if(chatRoomInfoBean==null){
+                throw new Exception("존재하지 않는 대화방아이디 입니다.");
+            }else {
+                if(chatRoomInfoBean.getROOM_OWNER().equals(userId)) {
+                    // REDIS 방장 정보변경
+                    redisUserService.changeRoomOwner(req_APPID, chatRoomInfoBean, req_NEW_ROOM_OWNER);
+                }else {
+                    throw new Exception("방장만이 새로운 방장을 위임 할 수 있습니다.");
+                }
+            }
+
+        }catch (Exception e){
+            resultHeadMap.put(Constants.RESULT_CODE_KEY, Constants.ERR_500);
+            resultHeadMap.put(Constants.RESULT_MESSAGE_KEY, e.getMessage());
+            return responseJson(resultHeadMap, resultBodyMap, req_APPID);
+        }
+        return responseJson(resultHeadMap,resultBodyMap, req_APPID);
+    }
+
+    /**
+     * 방나가기 : 마지막 한명까지 다 나가면 방을 소멸 시킨다.
+     * @param request
+     * @param response
+     * @return
+     */
     @RequestMapping(value="/chatRoomGetOut.ctl",produces="application/json; charset=utf8")
     public @ResponseBody
     String chatRoomGetOut(HttpServletRequest request, HttpServletResponse response){
@@ -234,21 +358,26 @@ public class ChatRoomController {
         Map<String,Object> resultBodyMap = new HashMap<String, Object>();
 
         String req_APPID = request.getParameter("APPID");
-        String req_USERID = request.getParameter("USERID");
         String req_ROOMID = request.getParameter("ROOMID");
 
-        if(req_APPID==null || req_APPID.equals("") || req_USERID==null || req_USERID.equals("") || req_ROOMID==null || req_ROOMID.equals("")){
+        if(req_APPID==null || req_APPID.equals("") || req_ROOMID==null || req_ROOMID.equals("")){
             resultHeadMap.put(Constants.RESULT_CODE_KEY,Constants.ERR_1000);
             resultHeadMap.put(Constants.RESULT_MESSAGE_KEY,Constants.ERR_1000_MSG);
             return responseJson(resultHeadMap,resultBodyMap, req_APPID);
         }
         try {
+            // ###################### 토큰 인증 결과 처리 시작 #############################
             resultHeadMap = (Map<String, String>) request.getAttribute("authResultMap");
-            if (resultHeadMap.get(Constants.RESULT_CODE_KEY).equals(Constants.RESULT_CODE_OK)) {  //인증에러가 아닐 경우만 비즈니스 로직 수행
-                redisUserService.getOutChatRoom(req_APPID, req_USERID, req_ROOMID);
-            } else {
-                return responseJson(resultHeadMap, resultBodyMap, req_APPID);
+            //인증에러가 아닐 경우만 비즈니스 로직 수행
+            if (!resultHeadMap.get(Constants.RESULT_CODE_KEY).equals(Constants.RESULT_CODE_OK)) { // 토큰인증체크
+                return responseJson(resultHeadMap, resultBodyMap, req_APPID); // 인증 실패 처리
             }
+            String userId = resultHeadMap.get("USERID");
+            resultHeadMap.remove("USERID"); //토큰에서 추출한 정보를 응답데이터에 넘기지 않기 위해
+            // ###################### 토큰 인증결과 처리 마침 ###############################
+
+            redisUserService.getOutChatRoom(req_APPID, userId, req_ROOMID);
+
         }catch (Exception e){
             resultHeadMap.put(Constants.RESULT_CODE_KEY, Constants.ERR_500);
             resultHeadMap.put(Constants.RESULT_MESSAGE_KEY, e.getMessage());
@@ -257,7 +386,6 @@ public class ChatRoomController {
         return responseJson(resultHeadMap,resultBodyMap, req_APPID);
     }
 
-    // TODO:챗팅방 입장시 상세정보 API 구현
 
     private String responseJson(Map<String,String> resultHeadMap,Map<String,Object> resultBodyMap,String reqAPPID){
         Map<String,Object> returnRootMap = new HashMap<String, Object>();
@@ -270,23 +398,17 @@ public class ChatRoomController {
         return responseJson;
     }
 
-    private String makeChatRoomID(TreeSet<Object> inviteUserIDTreeSet){
+    private String makeOneToOneChatRoomID(TreeSet reqInviteUserIDTreeSet) throws Exception{
         StringBuffer sb = new StringBuffer();
-        for(Object userIDObj : inviteUserIDTreeSet){
+        for(Object userIDObj : reqInviteUserIDTreeSet){
             sb.append(userIDObj.toString());
         }
-//        int sumByte = 0;
-//        System.out.println("MD5값" + HexUtil.getMD5(sb.toString()));
-//        System.out.println("SHA128" + HexUtil.getSHA1(sb.toString()));
-//        char[] chatRoomChars = Hex.encodeHex(sb.toString().getBytes());
-        String charRoomString =HexUtil.getMD5(sb.toString());
+        String makeRoomID = HexUtil.getMD5(sb.toString());
+        return "E"+makeRoomID.toUpperCase();
+    }
 
-//        byte[] cuidByteArr = charRoomString.getBytes();
-//        for (int i = 0; i < cuidByteArr.length; i++) {
-//            int aaa = cuidByteArr[i];
-//            System.out.println("#### aaa :"+aaa);
-//            sumByte += aaa;
-//        }
-        return charRoomString;
+    private String makeGroupChatRoomID(String appid, String userid) throws Exception{
+        String groupMakeRoomID = HexUtil.getMD5(userid+System.currentTimeMillis());
+        return "G"+groupMakeRoomID.toUpperCase();
     }
 }

@@ -78,7 +78,7 @@ public class ApplicationConfig {
 
     @Bean
     public RedisNode mySent2(){
-        if(sentinelIpArr.length>1) {
+        if(sentinelIpArr!=null && sentinelIpArr.length>1) {
             logger.info(("## [ApplicationConfig mySent2] sentinel2 connect info :" + sentinelIpArr[1] + ":" + sentinePortlArr[1]));
             return new RedisNode(sentinelIpArr[1], sentinePortlArr[1]);
         }
@@ -87,7 +87,7 @@ public class ApplicationConfig {
 
     @Bean
     public RedisNode mySent3(){
-        if(sentinelIpArr.length>2) {
+        if(sentinelIpArr!=null &&  sentinelIpArr.length>2) {
             logger.info(("## [ApplicationConfig mySent3] sentinel3 connect info :" + sentinelIpArr[2] + ":" + sentinePortlArr[2]));
             return new RedisNode(sentinelIpArr[2], sentinePortlArr[2]);
         }
@@ -120,9 +120,9 @@ public class ApplicationConfig {
     public JedisPoolConfig jedisPoolConfig(){
         JedisPoolConfig jedisPoolConfig = new JedisPoolConfig();
         jedisPoolConfig.setMaxTotal(10);
-        jedisPoolConfig.setMaxWaitMillis(3000);
-        jedisPoolConfig.setMaxIdle(50);
-        jedisPoolConfig.setMinIdle(10);
+        jedisPoolConfig.setMaxWaitMillis(10000);
+        jedisPoolConfig.setMaxIdle(10);
+        jedisPoolConfig.setMinIdle(5);
         jedisPoolConfig.setTestOnBorrow(true);
         jedisPoolConfig.setTestWhileIdle(true);
         jedisPoolConfig.setNumTestsPerEvictionRun(10);
@@ -133,9 +133,11 @@ public class ApplicationConfig {
     public JedisConnectionFactory jedisConnFactory(){
         JedisConnectionFactory jedisConnectionFactory;
         if(BrokerConfig.getProperty(BrokerConfig.REDIS_SENTINELS_USE).equals("Y")) {
+            System.out.println("### USE SENTINEL");
             logger.info("### USE SENTINEL");
             jedisConnectionFactory = new JedisConnectionFactory(redisSentinelConfiguration());
         }else {
+            System.out.println("### NOT USE SENTINEL");
             logger.info("### NOT USE SENTINEL");
             jedisConnectionFactory = new JedisConnectionFactory();
             jedisConnectionFactory.setHostName(BrokerConfig.getProperty(BrokerConfig.REDIS_MASTER_HOST));
@@ -152,6 +154,8 @@ public class ApplicationConfig {
     public RedisTemplate masterRedisTemplate(){
         RedisTemplate redisTemplate = new RedisTemplate();
         redisTemplate.setConnectionFactory(jedisConnFactory());
+        redisTemplate.setEnableTransactionSupport(true);
+        redisTemplate.setExposeConnection(true);
         redisTemplate.setKeySerializer(stringRedisSerializer());
         redisTemplate.setValueSerializer(stringRedisSerializer());
         redisTemplate.setHashKeySerializer(stringRedisSerializer());

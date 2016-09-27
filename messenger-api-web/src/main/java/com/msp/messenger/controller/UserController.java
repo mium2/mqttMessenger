@@ -12,6 +12,7 @@ import com.msp.messenger.service.redis.RedisAllocateUserService;
 import com.msp.messenger.service.redis.RedisUserService;
 import com.msp.messenger.util.JsonObjectConverter;
 
+import com.msp.messenger.util.security.Sha256Util;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -49,7 +50,80 @@ public class UserController {
     @Value("${token.expire.minute:30}")
     private String TOKEN_EXPIRE_MINUTE;
 
+
+    /**
+     * 유저정보 수정 API
+     * @param request
+     * @param response
+     * @param req_userInfoBean
+     * @return
+     */
+    @RequestMapping(value = "/editUserInfo.ctl",produces = "application/json; charset=utf8")
+    public @ResponseBody
+    String editUserInfo(HttpServletRequest request, HttpServletResponse response, @ModelAttribute UserInfoBean req_userInfoBean){
+        Map<String,String> resultHeadMap = new HashMap<String, String>();
+        Map<String,String> resultBodyMap = new HashMap<String, String>();
+
+        if(req_userInfoBean.getAPPID().equals("") || req_userInfoBean.getDEVICEID().equals("")
+            || req_userInfoBean.getHP_NUM().equals("") || req_userInfoBean.getNICKNAME().equals("")){
+            resultHeadMap.put(Constants.RESULT_CODE_KEY,Constants.ERR_1000);
+            resultHeadMap.put(Constants.RESULT_MESSAGE_KEY,Constants.ERR_1000_MSG);
+            return responseJson(resultHeadMap,resultBodyMap, req_userInfoBean.getAPPID());
+        }
+        try {
+            // ###################### 토큰 인증 결과 처리 시작 #############################
+            resultHeadMap = (Map<String, String>) request.getAttribute("authResultMap");
+            //인증에러가 아닐 경우만 비즈니스 로직 수행
+            if (!resultHeadMap.get(Constants.RESULT_CODE_KEY).equals(Constants.RESULT_CODE_OK)) { // 토큰인증체크
+                return responseJson(resultHeadMap, resultBodyMap, req_userInfoBean.getAPPID()); // 인증 실패 처리
+            }
+            String userId = resultHeadMap.get("USERID");
+            resultHeadMap.remove("USERID"); //토큰에서 추출한 정보를 응답데이터에 넘기지 않기 위해
+            // ###################### 토큰 인증결과 처리 마침 ###############################
+
+            req_userInfoBean.setUSERID(userId);
+            String hpNum = req_userInfoBean.getHP_NUM().replaceAll("-","").replaceAll(" ", "");
+            req_userInfoBean.setHP_NUM(hpNum);
+
+            // PASSWORD SHA256 Encrypt
+            String encryptPass = Sha256Util.getEncrypt(req_userInfoBean.getPASSWORD());
+            req_userInfoBean.setPASSWORD(encryptPass);
+
+            // 이미 messenger 서비스에 등록되어 있는 사용자인지 확인 한다.
+            UserInfoBean orgUserInfoBean = redisUserService.getUserInfo(req_userInfoBean.getAPPID(), userId);
+            if(orgUserInfoBean==null){
+                // 인증실패 에러 처리
+                resultHeadMap.put(Constants.RESULT_CODE_KEY, Constants.ERR_3008);
+                resultHeadMap.put(Constants.RESULT_MESSAGE_KEY, Constants.ERR_3008_MSG);
+                return responseJson(resultHeadMap,resultBodyMap, req_userInfoBean.getAPPID());
+            }else{
+                String orgHP_NUM = orgUserInfoBean.getHP_NUM();
+                orgUserInfoBean.setPASSWORD(req_userInfoBean.getPASSWORD());
+                orgUserInfoBean.setNICKNAME(req_userInfoBean.getNICKNAME());
+                orgUserInfoBean.setHP_NUM(req_userInfoBean.getHP_NUM());
+                // 이전 데이타에서 변경된 내용이 있으므로 RDB와 Redis 유저정보를 업데이트 한다.
+                try {
+                    int applyRow = rdbUserService.updateUser(orgUserInfoBean);
+                    if (applyRow > 0) {
+                        redisUserService.editUser(orgUserInfoBean,orgHP_NUM);
+                    }
+                } catch (Exception e) {
+                    resultHeadMap.put(Constants.RESULT_CODE_KEY, Constants.ERR_500);
+                    resultHeadMap.put(Constants.RESULT_MESSAGE_KEY, e.getMessage());
+                    return responseJson(resultHeadMap,resultBodyMap, req_userInfoBean.getAPPID());
+                }
+            }
+
+            return responseJson(resultHeadMap, resultBodyMap, req_userInfoBean.getAPPID());
+        }catch(Exception e){
+            resultHeadMap.put(Constants.RESULT_CODE_KEY, Constants.ERR_500);
+            resultHeadMap.put(Constants.RESULT_MESSAGE_KEY, e.getMessage());
+            return responseJson(resultHeadMap, resultBodyMap, req_userInfoBean.getAPPID());
+        }
+    }
+
     // messenger 서비스 가입.
+    @Deprecated
     @RequestMapping(value = "/checkUserAndRegist.ctl",produces = "application/json; charset=utf8")
     public @ResponseBody
     String subscribeChatService(HttpServletRequest request, HttpServletResponse response, @ModelAttribute UserInfoBean req_userInfoBean){
@@ -57,10 +131,12 @@ public class UserController {
         resultHeadMap.put(Constants.RESULT_CODE_KEY,Constants.RESULT_CODE_OK);
         resultHeadMap.put(Constants.RESULT_MESSAGE_KEY,Constants.RESULT_MESSAGE_OK);
         Map<String,String> resultBodyMap = new HashMap<String, String>();
+        String returnAuthKey = request.getParameter("AUTHKEY");
 
+        resultHeadMap = (Map<String, String>) request.getAttribute("authResultMap");
         boolean isPushServiceApiCall = false; // 푸시서비스 가입 호출 여부
 
-        if(req_userInfoBean.getUSERID().equals("") || req_userInfoBean.getAPPID().equals("") || req_userInfoBean.getDEVICEID().equals("")
+        if(req_userInfoBean.getAPPID().equals("") || req_userInfoBean.getDEVICEID().equals("")
             || req_userInfoBean.getHP_NUM().equals("") || req_userInfoBean.getNICKNAME().equals("") || req_userInfoBean.getMPSN().equals("")){
             resultHeadMap.put(Constants.RESULT_CODE_KEY,Constants.ERR_1000);
             resultHeadMap.put(Constants.RESULT_MESSAGE_KEY,Constants.ERR_1000_MSG);
@@ -86,6 +162,10 @@ public class UserController {
         String hpNum = req_userInfoBean.getHP_NUM().replaceAll("-","").replaceAll(" ","");
         req_userInfoBean.setHP_NUM(hpNum);
 
+        // PASSWORD SHA256 Encrypt
+        String encryptPass = Sha256Util.getEncrypt(req_userInfoBean.getPASSWORD());
+        req_userInfoBean.setPASSWORD(encryptPass);
+
         String isRegistered = "N";
         // 이미 messenger 서비스에 등록되어 있는 사용자인지 확인 한다.
         UserInfoBean orgUserInfoBean = redisUserService.getUserInfo(req_userInfoBean.getAPPID(), req_userInfoBean.getUSERID());
@@ -95,10 +175,18 @@ public class UserController {
         try {
             // 유저등록(RDB / Redis)
             if (!isRegistered.equals("Y")) {
-                //TODO : 넘어온 핸드폰 번호가 다른 아이디가 사용중일때 처리방법.
-                //TODO : STEP1. 이미 사용중인 핸드폰 번호이므로 에러 처리를 하여 핸드폰번호 인증을 받도록 처리하도록 가이드.
-                //TODO : STEP2. 인증을 받은 후 해당 핸드폰 번호를 사용 할 수 있도록 로직 구현해야함.
-                //TODO : STEP3. 클라이언트는 라이센스시크릿키로 핸드폰번호와CUID를 암호화하고 해당 hash값을 넘기면 서버는 넘어온 암호화 값의 위변조를 검사하고 복호화 한 후 해당 값으로 기존값을 변경또는 삭제 후 저장한다.
+                // 최초가입이므로 토큰이 임시토큰인지 확인 한다.(임시토큰 여부 resultHeadMap.get(Constants.RESULT_CODE_KEY) 값이 205 이어야 한다.)
+                // AuthKey 검사결과 처리
+                if (!resultHeadMap.get(Constants.RESULT_CODE_KEY).equals(Constants.RESULT_CODE_HOLD_OK)) {  //임시발급 인증키가 아니면 인증에러리턴.
+                    // 인증에러
+                    resultHeadMap.put(Constants.RESULT_CODE_KEY, Constants.ERR_3000);
+                    resultHeadMap.put(Constants.RESULT_MESSAGE_KEY, Constants.ERR_3000_MSG);
+                    return responseJson(resultHeadMap, resultBodyMap, req_userInfoBean.getAPPID());
+                }
+                //넘어온 핸드폰 번호가 다른 아이디가 사용중일때 처리방법.
+                //STEP1. 이미 사용중인 핸드폰 번호이므로 에러 처리를 하여 핸드폰번호 인증을 받도록 처리하도록 가이드.
+                //STEP2. 인증을 받은 후 해당 핸드폰 번호를 사용 할 수 있도록 로직 구현해야함.
+                //STEP3. 클라이언트는 라이센스시크릿키로 핸드폰번호와CUID를 암호화하고 해당 hash값을 넘기면 서버는 넘어온 암호화 값의 위변조를 검사하고 복호화 한 후 해당 값으로 기존값을 변경또는 삭제 후 저장한다.
                 if(redisUserService.isExistHpNum(req_userInfoBean.getAPPID(),req_userInfoBean.getHP_NUM())){
                     resultHeadMap.put(Constants.RESULT_CODE_KEY, Constants.ERR_2001);
                     resultHeadMap.put(Constants.RESULT_MESSAGE_KEY, Constants.ERR_2001_MSG);
@@ -158,11 +246,35 @@ public class UserController {
                         return responseJson(resultHeadMap,resultBodyMap, req_userInfoBean.getAPPID());
                     }
                 }
+                //임시토큰인 아닌 지속적으로 사용가능 한 token 생성
+                long currentTimeStamp = System.currentTimeMillis();
+                long expireMilliSecond = currentTimeStamp + (Integer.parseInt(TOKEN_EXPIRE_MINUTE)*60*1000);
+                returnAuthKey = memoryTokenManager.makeAccessToken(req_userInfoBean.getUSERID(), req_userInfoBean.getDEVICEID(), expireMilliSecond, appLicenseBean.getSECRET_KEY());
             } else {
+                // AuthKey 검사결과 처리. 반드시 정상적인 200 코드여야 한다.  앱을 지웠다가 다시 설치하는 경우는 임시토큰이 발급된다.
+                if (!resultHeadMap.get(Constants.RESULT_CODE_KEY).equals(Constants.RESULT_CODE_OK)) {
+                    // 인증에러
+                    resultHeadMap.put(Constants.RESULT_CODE_KEY, Constants.ERR_3000);
+                    resultHeadMap.put(Constants.RESULT_MESSAGE_KEY, Constants.ERR_3000_MSG+"[temporary authkey]");
+                    return responseJson(resultHeadMap, resultBodyMap, req_userInfoBean.getAPPID());
+                }
+                // TODO : 패스워드 검증
+                if(!encryptPass.equals(orgUserInfoBean.getPASSWORD())){
+                    // 인증에러
+                    resultHeadMap.put(Constants.RESULT_CODE_KEY, Constants.ERR_3009);
+                    resultHeadMap.put(Constants.RESULT_MESSAGE_KEY, Constants.ERR_3009_MSG);
+                    return responseJson(resultHeadMap, resultBodyMap, req_userInfoBean.getAPPID());
+                }else{
+                    //임시토큰인 아닌 지속적으로 사용가능 한 token 생성
+                    long currentTimeStamp = System.currentTimeMillis();
+                    long expireMilliSecond = currentTimeStamp + (Integer.parseInt(TOKEN_EXPIRE_MINUTE)*60*1000);
+                    returnAuthKey = memoryTokenManager.makeAccessToken(req_userInfoBean.getUSERID(), req_userInfoBean.getDEVICEID(), expireMilliSecond, appLicenseBean.getSECRET_KEY());
+                }
+
                 // 최최 할당 브로커서버아이디는 계속 똑같이 유지시키기위해 아래와 같이 셋팅
                 req_userInfoBean.setORG_BROKER_ID(orgUserInfoBean.getORG_BROKER_ID());
-                // TODO : 이미 등록되어 있으나 핸드폰 번호가 저장되어 있는 것과 다르게 들어왔을때 처리 방안.
-                // TODO : STEP1. 핸드폰번호가 다르다는 에러 메세지 전송하여 핸드폰 번호 인증을 다시 받도록 한다.
+                // 이미 등록되어 있으나 핸드폰 번호가 저장되어 있는 것과 다르게 들어왔을때 처리 방안.
+                // STEP1. 핸드폰번호가 다르다는 에러 메세지 전송하여 핸드폰 번호 인증을 다시 받도록 한다.
                 if(!orgUserInfoBean.getHP_NUM().equals(req_userInfoBean.getHP_NUM())){
                     resultHeadMap.put(Constants.RESULT_CODE_KEY, Constants.ERR_2002);
                     resultHeadMap.put(Constants.RESULT_MESSAGE_KEY, Constants.ERR_2002_MSG);
@@ -214,7 +326,8 @@ public class UserController {
                 if (!isChangeToken && orgUserInfoBean.getNICKNAME().equals(req_userInfoBean.getNICKNAME())
                     && orgUserInfoBean.getHP_NUM().equals(req_userInfoBean.getHP_NUM())
                     && orgUserInfoBean.getDEVICEID().equals(req_userInfoBean.getDEVICEID())
-                    && orgUserInfoBean.getBROKER_ID().equals(req_userInfoBean.getBROKER_ID())) {
+                    && orgUserInfoBean.getBROKER_ID().equals(req_userInfoBean.getBROKER_ID())
+                    && orgUserInfoBean.getPASSWORD().equals(req_userInfoBean.getPASSWORD())) {
                     // 변경된 내용이 없으므로 아무것도 하지 않아도 된다.
 
                 } else {
@@ -253,14 +366,15 @@ public class UserController {
                     }
                 }
             }
-            // 기존에 할당된 브로커아이디가 변경되었다면 USER_BROKERID 레디스 키테이블에 변경저장
+            // 최초가입 또는 기존에 할당된 브로커아이디가 변경되었다면 USER_BROKERID(해당유저가 할당되어 있는 브로커서버아이디정보) 레디스 키테이블에 변경저장
             if(orgUserInfoBean==null || !orgUserInfoBean.getBROKER_ID().equals(req_userInfoBean.getBROKER_ID())){
-                redisUserService.putUserIDBrokerID(req_userInfoBean.getAPPID(), req_userInfoBean.getUSERID(), req_userInfoBean.getBROKER_ID());
+                redisUserService.putLoginID(req_userInfoBean.getUSERID(), req_userInfoBean.getBROKER_ID());
             }
             // 할당할 브로커서버 정보를 보내야 한다.
             BrokerConInfoBean brokerConInfoBean = RedisAllocateUserService.getInstance().getClientConnectUpnsInfo(req_userInfoBean.getBROKER_ID());
             resultBodyMap.put("brokerip",brokerConInfoBean.getIP());
             resultBodyMap.put("port",brokerConInfoBean.getPORT());
+            resultBodyMap.put("authkey",returnAuthKey);
 
             return responseJson(resultHeadMap, resultBodyMap, req_userInfoBean.getAPPID());
         }catch(Exception e){
@@ -270,66 +384,6 @@ public class UserController {
         }
     }
 
-
-    @RequestMapping(value="/unRegistUser.ctl", produces = "application/json; charset=utf8")
-    public @ResponseBody
-    String unRegistUser(HttpServletRequest request, HttpServletResponse response){
-        Map<String,String> resultHeadMap = new HashMap<String, String>();
-        Map<String,String> resultBodyMap = new HashMap<String, String>();
-
-        String req_APPID = request.getParameter("APPID");
-        String req_USERID = request.getParameter("USERID");
-
-        if(req_APPID==null || req_APPID.equals("") || req_USERID==null || req_USERID.equals("")){
-            resultHeadMap.put(Constants.RESULT_CODE_KEY,Constants.ERR_1000);
-            resultHeadMap.put(Constants.RESULT_MESSAGE_KEY,Constants.ERR_1000_MSG);
-            return responseJson(resultHeadMap,resultBodyMap, req_APPID);
-        }
-        try {
-            resultHeadMap = (Map<String, String>) request.getAttribute("authResultMap");
-            if (resultHeadMap.get(Constants.RESULT_CODE_KEY).equals(Constants.RESULT_CODE_OK)) {  //인증에러가 아닐 경우만 비즈니스 로직 수행
-                // 푸시서버에 토큰 등록 API를 호출한다.
-                try {
-                    UserInfoBean userInfoBean = redisUserService.getUserInfo(req_APPID, req_USERID);
-                    if(userInfoBean==null){
-                        resultHeadMap.put(Constants.RESULT_CODE_KEY,Constants.ERR_1002);
-                        resultHeadMap.put(Constants.RESULT_MESSAGE_KEY,Constants.ERR_1002_MSG);
-                        return responseJson(resultHeadMap,resultBodyMap, req_APPID);
-                    }
-                    if(!userInfoBean.getPUSH_TOKEN().trim().equals("") && !userInfoBean.getPUSH_SERVER().trim().equals("")) {
-                        Map<String, Object> responseMap = pushHttpCallService.unRegistPush(userInfoBean.getAPPID(), userInfoBean.getDEVICEID(), userInfoBean.getPUSH_SERVER(), userInfoBean.getUSERID(), userInfoBean.getPUSH_TOKEN());
-                        //TODO: 고민? 푸시서비스 가입을 정상 삭제 성공여부에 따라 메신저 유저를 삭제 할 필요는 없어 보임.
-//                        Map<String, String> responseHeader = (Map<String, String>) responseMap.get("HEADER");
-//                        if (!responseHeader.get("RESULT_CODE").equals("0000")) {
-//                            resultHeadMap.put(Constants.RESULT_CODE_KEY, Constants.ERR_5000);
-//                            resultHeadMap.put(Constants.RESULT_MESSAGE_KEY, responseHeader.get("RESULT_BODY"));
-//                            return responseJson(resultHeadMap, resultBodyMap, req_APPID);
-//                        }
-                    }
-
-                    int applyRow = rdbUserService.delUser(userInfoBean);
-                    if (applyRow > 0) {
-                        redisUserService.removeUser(userInfoBean);
-                        // 할당된 브로커 서버에 할당유저수 증가 시킴.
-                        RedisAllocateUserService.getInstance().minusUpnsUserCnt(userInfoBean.getBROKER_ID());
-                    }
-
-                }catch (Exception e){
-                    e.printStackTrace();
-                    resultHeadMap.put(Constants.RESULT_CODE_KEY, Constants.ERR_5000);
-                    resultHeadMap.put(Constants.RESULT_MESSAGE_KEY, Constants.ERR_5000_MSG+"["+e.getMessage()+"]");
-                    return responseJson(resultHeadMap,resultBodyMap, req_APPID);
-                }
-            } else {
-                return responseJson(resultHeadMap, resultBodyMap, req_APPID);
-            }
-        }catch (Exception e){
-            resultHeadMap.put(Constants.RESULT_CODE_KEY, Constants.ERR_500);
-            resultHeadMap.put(Constants.RESULT_MESSAGE_KEY, e.getMessage());
-            return responseJson(resultHeadMap, resultBodyMap, req_APPID);
-        }
-        return responseJson(resultHeadMap,resultBodyMap, req_APPID);
-    }
 
     private String responseJson(Map<String,String> resultHeadMap,Map<String,String> resultBodyMap,String reqAPPID){
 

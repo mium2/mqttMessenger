@@ -13,6 +13,7 @@ public class ConnAckMessage extends AbstractMessage {
     public static final byte BAD_USERNAME_OR_PASSWORD = 0x04;
     public static final byte NOT_AUTHORIZED = 0x05;
     public static final byte ANOTHER_SERVER_CONNECT = 0x06;
+    public static final byte TOKEN_EXPIRE = 0x07;
     
     private byte m_returnCode;
     

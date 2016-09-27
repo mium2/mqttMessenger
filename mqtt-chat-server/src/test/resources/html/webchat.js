@@ -3,14 +3,15 @@
  */
 var ws;
 var lastMessageSent;
-var clientID = "TEST01";
-var chatRoomUserCnt = 2;
-var chatRoomID = "d9408fbb558ded065d902093fed296d3";
+var appid = "com.uracle.push.test";
+var clientID = "USER01";
+var chatRoomUserCnt = 3;
+var chatRoomID = "74f61934e75a0292c8c5cf16927f180e";
 var savedMsgArr = new Array();
-
+var uploadFileUrl = "http://211.241.199.139:18080/fileUpload.ctl";
 if ("WebSocket" in window){
     // Let us open a web socket
-    ws = new WebSocket("ws://52.79.96.155:28080/webchat");
+    ws = new WebSocket("ws://211.241.199.139:28080/webchat");
     ws.binaryType = "arraybuffer";
     ws.onopen = function() {
         var connectMsg="CONNECT|"+clientID;
@@ -84,6 +85,32 @@ if ("WebSocket" in window){
 }else{
     // The browser doesn't support WebSocket
     alert("WebSocket NOT supported by your Browser!");
+}
+
+function formFileSubmit(){
+    var form = document.getElementById("myForm");
+    form.action = uploadFileUrl;
+    form.APPID.value = appid;
+    form.USERID.value = clientID;
+    form.ROOMID.value = chatRoomID;
+    var formData = new FormData(document.getElementById('myForm'));
+    $.ajax({
+        crossOrigin: true,    // 크로스도메인 해결 플러그인
+        url:uploadFileUrl,
+        dataType:'jsonp',
+        jsonpCallback: "myCallback",
+        cache: false,
+        contentType: false,
+        processData: false,
+        data:formData,
+        success:function(returnData){
+            alert(JSON.stringify(returnData));
+        },
+        error: function(jqXHR, textStatus, errorThrown) {
+            alert(errorThrown);
+        }
+
+    });
 }
 
 //파일을 ArrayBuffer를 서버로 전송함
@@ -180,6 +207,7 @@ function sendFileArrayBuffer() {
         sendBuff.set(new Uint8Array(fileArrayBuf),offset);
 
         putSendMsgUI("파일"+allFilename + " 전송",makeMsgId);
+        console.log("#### sendBuff:"+sendBuff.length);
 
         ws.send(sendBuff);
         document.getElementById("message").value = "";
@@ -229,7 +257,7 @@ window.onload = function() {
 
 function initLoad(){
     //localStorage.removeItem(clientID+"_msg");
-    var JsonSavedMsg = $.jStorage.get(clientID+"_msg");
+    var JsonSavedMsg = localStorage.getItem(clientID+"_msg");
     if(JsonSavedMsg!=null){
         console.log("### put saved msg: " + JsonSavedMsg);
         savedMsgArr = JSON.parse(JsonSavedMsg);

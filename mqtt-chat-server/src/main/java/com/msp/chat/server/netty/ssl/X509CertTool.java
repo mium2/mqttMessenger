@@ -1,5 +1,6 @@
 package com.msp.chat.server.netty.ssl;
 
+import org.apache.commons.codec.binary.Base64;
 import sun.security.x509.*;
 
 import java.io.FileOutputStream;
@@ -7,6 +8,7 @@ import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.math.BigInteger;
 import java.security.*;
+import java.security.cert.CertificateEncodingException;
 import java.security.cert.X509Certificate;
 import java.util.Date;
 
@@ -75,7 +77,10 @@ public class X509CertTool {
 			System.out.println("Public key : " + mkeyPair.getPublic());
 			X509Certificate x509Certificate = new X509CertTool().generateCertificate("CN=mium2, OU=Test Team, O=Company, L=Seoul, C=KR", mkeyPair, 365 * 10, "SHA1withRSA");
 
-//			FileOutputStream fos = new FileOutputStream("/Users/mium2/project/java/MqttChat/certificate/private/test01.crt");
+			// BASE64로 인코딩한 인증서 만들기 (PEM)
+//			convertToPemCrt(x509Certificate);
+
+			// BASE64로 인코딩 하지 않은 인증서 만들기
 			FileOutputStream fos = new FileOutputStream("/Users/mium2/project/git_repository/mqttMessenger/mqtt-chat-server/certificate/msp-chat.crt");
 			fos.write(x509Certificate.getEncoded());
 			fos.close();
@@ -83,5 +88,25 @@ public class X509CertTool {
 			e.printStackTrace();
 		}
 	}
+
+	private static void convertToPemCrt(X509Certificate cert) throws CertificateEncodingException {
+		Base64 encoder = new Base64(64);
+		String cert_begin = "-----BEGIN CERTIFICATE-----\n";
+		String end_cert = "-----END CERTIFICATE-----";
+
+		byte[] derCert = cert.getEncoded();
+		String pemCertPre = new String(encoder.encode(derCert));
+		String pemCert = cert_begin + pemCertPre + end_cert;
+
+		try {
+			FileOutputStream fos = new FileOutputStream("/Users/mium2/project/git_repository/mqttMessenger/mqtt-chat-server/certificate/msp-chat-pem.crt");
+			fos.write(pemCert.getBytes());
+			fos.close();
+		}catch (Exception e){
+			e.printStackTrace();
+		}
+
+	}
+
 
 }

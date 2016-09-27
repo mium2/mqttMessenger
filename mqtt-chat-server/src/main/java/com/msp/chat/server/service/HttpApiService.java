@@ -37,6 +37,7 @@ public class HttpApiService {
         Map<String, String> httpHeadParam = new HashMap<String, String>();
         httpHeadParam.put("Content-Type", "application/x-www-form-urlencoded");
         Map<String, Object> postParam = new HashMap<String, Object>();
+        postParam.put("USERID",BrokerConfig.SERVER_ID);
 
         try {
             httpClientUtil.httpPostConnect(MESSENGER_WEB_API_HOST + BROKERSERVER_INFO_URI, httpHeadParam, postParam, HttpClientUtil.requestConfig);

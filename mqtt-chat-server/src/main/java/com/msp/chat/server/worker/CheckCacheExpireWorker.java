@@ -31,6 +31,7 @@ public class CheckCacheExpireWorker implements Runnable{
 			try{
                 for(int i=0; i<loop; i++) {
                     Thread.sleep(1000);
+					//클라이언트가 세션이 있어 발송은 하였으나 클라이언트 네트웍이 끊겨 ACK가 들어오지 않으면 오프메세지에 저장하기 위해...
                     CachePublishStore.getInstance().evictExpiredElements();
 //                    CacheQos2Store.getInstance().evictExpiredElements();
 					// 설정시간에 발송자 ==> 브로커에 전달하는 Publish메세지 중 Dummy 데이타 삭제로직 수행.

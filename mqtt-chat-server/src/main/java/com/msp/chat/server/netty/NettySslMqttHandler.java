@@ -48,7 +48,7 @@ public class NettySslMqttHandler extends ChannelHandlerAdapter {
                         ctx.writeAndFlush("Welcome to " + InetAddress.getLocalHost().getHostName() + " secure chat service!\n");
                         ctx.writeAndFlush("Your session is protected by " + ctx.pipeline().get(SslHandler.class).engine().getSession().getCipherSuite() + " cipher suite.\n");
                         channels.add(ctx.channel());
-                        System.out.println("##### channels size:" + channels.size());
+                        System.out.println("##### @@channels size:" + channels.size());
                     }
                 }
         );

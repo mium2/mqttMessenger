@@ -22,9 +22,6 @@ import io.netty.util.CharsetUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.HashMap;
-import java.util.Map;
-
 import static io.netty.handler.codec.http.HttpHeaderNames.*;
 import static io.netty.handler.codec.http.HttpMethod.GET;
 import static io.netty.handler.codec.http.HttpResponseStatus.*;
@@ -60,7 +57,7 @@ public class WebSocketServerHandler extends SimpleChannelInboundHandler<Object> 
         // Handle a bad request.
         if (!req.decoderResult().isSuccess()) {
             sendHttpResponse(ctx, req, new DefaultFullHttpResponse(HTTP_1_1, BAD_REQUEST));
-            return;
+
         }
 
         // Allow only GET methods.
@@ -172,6 +169,7 @@ public class WebSocketServerHandler extends SimpleChannelInboundHandler<Object> 
                 webSocketMsgBean.setFilename(new String(fileNameBytes,"utf-8"));
                 webSocketMsgBean.setAttachFile(bytes);
                 WebSocketMsgManager.getInstance().putWebSocketMsgBean(webSocketMsgBean);
+
             }catch (Exception e){
                 e.printStackTrace();
             }

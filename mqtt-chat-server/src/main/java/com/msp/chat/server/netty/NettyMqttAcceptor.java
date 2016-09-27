@@ -1,6 +1,5 @@
 package com.msp.chat.server.netty;
 
-
 import com.msp.chat.server.commons.utill.BrokerConfig;
 import com.msp.chat.server.netty.metrics.MessageMetrics;
 import com.msp.chat.server.netty.metrics.MessageMetricsCollector;
@@ -12,7 +11,6 @@ import io.netty.channel.*;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
-import io.netty.handler.timeout.IdleStateHandler;
 import io.netty.channel.socket.SocketChannel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

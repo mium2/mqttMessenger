@@ -37,13 +37,13 @@ public class BrokerConInfoStore {
                 serverInfoBean.setPORT(serverInfoMap.get("port"));
                 serverInfoBean.setSERVERID(BROKERID);
                 serverInfBeanMap.put(BROKERID, serverInfoBean);
-                logger.info("######[RedisStorageService init]BROKER SERVER COUNT : "+ serverInfBeanMap.size());
+                logger.info("######[BrokerConInfoStore init]BROKER SERVER COUNT : "+ serverInfBeanMap.size());
             }
             if(serverInfBeanMap.size()==0){
                 throw new Exception("RDB에 브로커 서버 정보를 먼저 셋팅해 주세요.");
             }
         } else {
-            throw new Exception("브로커 서버 정보를 가져오는데 실패하였습니다.");
+            throw new Exception("WEB-API서버로 부터 브로커 서버 정보를 가져오는데 실패하였습니다.");
         }
 
     }

@@ -40,7 +40,7 @@ public class PublishMain {
         String payload = "안녕하세요. 테스트 메세지입니다.";
         for(int i=0; i<10; i++) {
             payload = payload+i;
-            client.publish(topic, payload.getBytes(), AbstractMessage.QOSType.LEAST_ONE, false);
+            client.publish(topic, payload.getBytes(), AbstractMessage.QOSType.MOST_ONE, false);
         }
         System.out.println("###### 방법1:메세지 발송");
     }

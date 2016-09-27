@@ -30,17 +30,13 @@ import java.util.*;
 @Service
 public class RedisStorageService {
     private Logger logger = LoggerFactory.getLogger("server");
-    //key : roomID, value : RedisChatRoomBean class ==> JsonString
-    public final static String REDIS_CHATROOM = "CHATROOM";
-    //key : userid , Value : HashSet<String> ==> roomID
-    public final static String REDIS_USER_CHATROOM = "USER_CHATROOM";
-    public final static String REDIS_RETAIN_MSG = "RETAIN_MSG";
-    public final static String REDIS_OFFLINE_MSG = "OFFMSG";
-    public final static String REDIS_OFFLINE_MSG_EXPIRE = "OFFMSG_EXPIRE";
-    public final static String REDIS_USER_BROKERID = "USER_BROKERID";
-    public final static String REDIS_PUBMSG = "PUBMSG";
-    public final static String REDIS_PUBACK_CNT = "PUBACK_CNT";
-    public final static String REDIS_ROOMID_MSG = "ROOMID_";
+    public final static String REDIS_RETAIN_MSG = "H_RETAIN_MSG";
+    public final static String REDIS_OFFLINE_MSG = "H_OFFMSG"; // 유저아이디 : 발송메세지정보(json string)
+    public final static String REDIS_OFFLINE_MSG_EXPIRE = "_OFFMSG_EXPIRE"; // 유저아이디 : 만료시간(가장오래된메세지)
+    public final static String REDIS_LOGINUSER_BROKERID = "H_LOGINUSER_BROKERID";  // 로그인중인유저아이디 : 접속할브로커아이디
+    public final static String REDIS_PUBMSG = "H_PUBMSG"; //발송자아이디|메세지번호 : 발송메세지정보(PubMsgBean Json String)
+    public final static String REDIS_PUBACK_CNT = "H_PUBACK_CNT"; //발송자아이디|메세지번호 : 전달하지못한메세지카운트
+    public final static String REDIS_ROOMID_MSG = "L_ROOMID_"; //채팅방아이디:보낸메세지. 설명==>채팅방별 보낸메세지리스트
     public String OFFMSG_KEYTABLE = null;
     public String OFFMSG_EXPIRE_KEYTABLE = null;
     public int CACHE_USER_MSG_COUNT = 0;
@@ -60,15 +56,15 @@ public class RedisStorageService {
 
 
     public void putUserIDBrokerID(String clientID, String brokerID){
-        masterRedisTemplate.opsForHash().put(REDIS_USER_BROKERID,clientID,brokerID);
+        masterRedisTemplate.opsForHash().put(REDIS_LOGINUSER_BROKERID,clientID,brokerID);
     }
 
     public Object getUserAsignBrokerID(String clientID){
-        return slaveRedisTemplate.opsForHash().get(REDIS_USER_BROKERID,clientID);
+        return slaveRedisTemplate.opsForHash().get(REDIS_LOGINUSER_BROKERID,clientID);
     }
 
     public Object getBrokerID(String clientID){
-        return slaveRedisTemplate.opsForHash().get(REDIS_USER_BROKERID,clientID);
+        return slaveRedisTemplate.opsForHash().get(REDIS_LOGINUSER_BROKERID,clientID);
     }
     public void putPubMsg(PublishEvent publishEvent, int subscriberCnt){
         //챗팅방아이디(토픽)으로 키테이블 생성하는게 좋을 듯함. ListSet으로 그래야 메세지 히스토리를 사이즈 단위로 관리 할 수 있음.
@@ -393,7 +389,8 @@ public class RedisStorageService {
     }
 
     /**
-     * 단말이 브로커에 발송 요청한 publish메세지는 구독자가 다 받거나 off메세지 저장시간이 만료되면 다 지워져야 하나.. 서버를 리부트 하면 off메세지에 저장이 다 날아가 오래된 메세지임에도 불구하고
+     * 단말이 브로커에 발송 요청한 publish메세지는 구독자가 다 받거나 off메세지 저장시간이 만료되면 다 지워져야 하나..
+     * 서버를 리부트 하면 off메세지에 저장이 다 날아가 오래된 메세지임에도 불구하고
      * 더미데이타로 계속 쌓여 메모리를 까먹으므로 설정된 새벽시간에 메세지 사이즈를 체크하여 정리해줄 필요가 있음.
      */
     public void cleanOrgPublishMsg(){

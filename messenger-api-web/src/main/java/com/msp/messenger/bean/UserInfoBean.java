@@ -6,6 +6,7 @@ package com.msp.messenger.bean;
 public class UserInfoBean {
     private String APPID = "";
     private String USERID = "";
+    private String PASSWORD = "";
     private String HP_NUM = "";
     private String DEVICEID = "";
     private String NICKNAME = "";
@@ -29,6 +30,14 @@ public class UserInfoBean {
 
     public void setUSERID(String USERID) {
         this.USERID = USERID;
+    }
+
+    public String getPASSWORD() {
+        return PASSWORD;
+    }
+
+    public void setPASSWORD(String PASSWORD) {
+        this.PASSWORD = PASSWORD;
     }
 
     public String getHP_NUM() {

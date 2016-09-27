@@ -27,8 +27,11 @@
     <mvc:interceptors>
         <mvc:interceptor>
             <mvc:mapping path="/*.ctl"/>
-            <mvc:exclude-mapping path="/checkUserAndRegist.ctl"/>
             <mvc:exclude-mapping path="/mobile/auth.ctl"/>
+            <mvc:exclude-mapping path="/download.ctl"/>
+            <mvc:exclude-mapping path="/checkUserID.ctl"/>
+            <mvc:exclude-mapping path="/regMessengerService.ctl"/>
+            <mvc:exclude-mapping path="/login.ctl"/>
             <bean class="com.msp.messenger.common.interceptor.CheckHandlerInterceptor"/>
         </mvc:interceptor>
     </mvc:interceptors>

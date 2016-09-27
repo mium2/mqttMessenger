@@ -79,9 +79,16 @@ public class WebSocketWorkerThread extends Thread{
             nettyChannel.setAttribute(Constants.ATTR_CLIENTID, connectID);
             WebsocketClientIdCtxManager.getInstance().putChannel(connectID, nettyChannel.getChannelHandlerContext());
             webSocketMsgBean.getServerChannel().write(new TextWebSocketFrame("CONACK|200|SUCCESS"));
+
+            // TODO : OFF메세지에 있는 메세지 전송
+            mqttMsgProcessor.offMsgRepublish(connectID);
         }
     }
 
+    /**
+     * 메세지 발송처리
+     * @param webSocketMsgBean
+     */
     private void processPublish(WebSocketMsgBean webSocketMsgBean){
         String connectID = webSocketMsgBean.getRequestArr()[1];
         int messageId = Integer.parseInt(webSocketMsgBean.getRequestArr()[2]);
@@ -143,6 +150,10 @@ public class WebSocketWorkerThread extends Thread{
         return returnValue;
     }
 
+    /**
+     * 파일전송 처리
+     * @param webSocketMsgBean
+     */
     private void processAttachFile(WebSocketMsgBean webSocketMsgBean){
         String connectID = webSocketMsgBean.getRequestArr()[1];
         String messageId = webSocketMsgBean.getRequestArr()[2];

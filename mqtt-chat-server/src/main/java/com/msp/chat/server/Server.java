@@ -4,14 +4,12 @@ import ch.qos.logback.classic.LoggerContext;
 import ch.qos.logback.classic.joran.JoranConfigurator;
 import ch.qos.logback.core.joran.spi.JoranException;
 import com.msp.chat.client.BrokerClientManager;
+import com.msp.chat.license.LicenseValidator;
 import com.msp.chat.server.commons.utill.BrokerConfig;
 import com.msp.chat.server.commons.utill.LocaleUtils;
 import com.msp.chat.server.config.ApplicationConfig;
 import com.msp.chat.server.netty.*;
-import com.msp.chat.server.worker.CheckCacheExpireWorker;
-import com.msp.chat.server.worker.MqttMsgWorkerManager;
-import com.msp.chat.server.worker.PushSendManager;
-import com.msp.chat.server.worker.WebSocketMsgManager;
+import com.msp.chat.server.worker.*;
 import org.apache.commons.configuration.ConfigurationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,6 +19,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 
 import java.io.IOException;
 import java.text.DecimalFormat;
+import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -67,6 +66,32 @@ public class Server {
             return;
         }
 
+        //라이센스 체크
+        try {
+            Properties properties = System.getProperties();
+            String HomeDir = properties.getProperty("user.dir");
+            String licenDirSrc = HomeDir+properties.getProperty("file.separator")+"config"+properties.getProperty("file.separator");
+            System.out.println("##### licenDirSrc:"+licenDirSrc);
+            LicenseValidator licenseValidator = LicenseValidator.getInstance();
+            licenseValidator.setLicenseFileDir(licenDirSrc);
+            licenseValidator.initialize();
+            if (!licenseValidator.validate()) {
+                System.out.println("#########################################################");
+                System.out.println("##############      License Error ~~!     ###############");
+                System.out.println("#########################################################");
+                System.out.println("!!!!!!!!!!! Check the expiration time of the IP server license file.!!!!!!!!!!!!!!!\n+" +
+                    "#########################################################");
+                System.exit(-1);
+            }
+        }catch (Exception e){
+            System.out.println("#########################################################");
+            System.out.println("##############      License Error ~~!     ###############");
+            System.out.println("#########################################################");
+            System.out.println("!!!!!!! The license file is incorrect. Please use the license file as received from Uracle !!!!!!!!!\n" +
+                "#########################################################");
+            System.exit(-1);
+        }
+
         ctx = new AnnotationConfigApplicationContext(ApplicationConfig.class);  //스프링 Config 호출
 
         Object obj = ctx.getBean("masterRedisTemplate");
@@ -93,6 +118,9 @@ public class Server {
 
             // 웹소켓 메세지처리 매니저 구동
             WebSocketMsgManager.getInstance().startWorkers();
+
+            // Http 메세지 처리 구동
+            HttpMsgManager.getInstance().startWorkers();
 
             ExecutorService threadPool = Executors.newFixedThreadPool(1);
             threadPool.execute(new CheckCacheExpireWorker());

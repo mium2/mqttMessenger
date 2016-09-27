@@ -1,7 +1,9 @@
 package com.msp.chat.server.netty;
 
 import com.google.gson.JsonObject;
-import com.msp.chat.server.controller.PushHttpController;
+import com.msp.chat.server.bean.HttpRequestBean;
+import com.msp.chat.server.controller.HttpController;
+import com.msp.chat.server.worker.HttpMsgManager;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerAdapter;
@@ -24,96 +26,54 @@ import static io.netty.handler.codec.http.HttpVersion.*;
 public class NettyHttpHandler extends ChannelHandlerAdapter {
 
     private static final HttpDataFactory factory = new DefaultHttpDataFactory(DefaultHttpDataFactory.MINSIZE); //Disk if size exceed
-    private HttpPostRequestDecoder decoder;
-    private Map<String,String> reqMap = new HashMap<String, String>();
-    private HttpRequest request;
 
-    private Logger logger = LoggerFactory.getLogger(this.getClass().getName());
+    private HttpRequestBean httpRequestBean = null;
+    private Logger logger = LoggerFactory.getLogger("server");
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-
-        if (msg instanceof HttpRequest) {
-            request = (HttpRequest) msg;
-
-            QueryStringDecoder decoderQuery = new QueryStringDecoder(request.uri());
-            Map<String, List<String>> uriAttributes = decoderQuery.parameters();
-            for (Map.Entry<String, List<String>> attr: uriAttributes.entrySet()) {
-                for (String attrVal: attr.getValue()) {
-                    reqMap.put(attr.getKey(),attrVal);
-                }
-            }
-            decoder = new HttpPostRequestDecoder(factory, request);
-            if (HttpHeaderUtil.is100ContinueExpected(request)) {
-                ctx.write(new DefaultFullHttpResponse(HTTP_1_1, CONTINUE));
-            }
+//        logger.debug("## channelRead :"+msg.toString());
+        if(httpRequestBean==null) {
+            httpRequestBean = new HttpRequestBean();
         }
-
+        if (msg instanceof HttpRequest) {
+            HttpRequest request = (HttpRequest) msg;
+            httpRequestBean.setHttpRequest(request);
+        }
         // Post 방식일때 Http Body에 넘어오는 추가 데이타
         if(msg instanceof HttpContent){
             HttpContent content = (HttpContent) msg;
-            if (decoder != null) {
-                try {
-                    decoder.offer(content);
-                    while (decoder.hasNext()) {
-                        InterfaceHttpData data = decoder.next();
-                        if (data != null) {
-                            try {
-                                if (data.getHttpDataType() == InterfaceHttpData.HttpDataType.Attribute) {
-                                    Attribute attribute = (Attribute) data;
-                                    String value = attribute.getValue();
-                                    reqMap.put(attribute.getName(),value);
-                                }
-                            }catch (IOException e1) {
-                                e1.printStackTrace();
-                                return;
-                            }finally {
-                                data.release();
-                            }
-                        }
-                    }
-                } catch (HttpPostRequestDecoder.ErrorDataDecoderException e1) {
-                    e1.printStackTrace();
-                    ctx.close();
-                    return;
-                }
-            }
-
+            httpRequestBean.setHttpContent(content);
             if (content instanceof LastHttpContent) {  //request를 마지막 까지 다 읽어 드리고 난 후 처리 할것들 구현
 
             }
         }
     }
+
     @Override
     public void channelReadComplete(ChannelHandlerContext ctx) {
-        PushHttpController pushHttpController = new PushHttpController();
-        JsonObject rootJsonObj = new JsonObject();
-        rootJsonObj.addProperty("resultCode","404");
-        rootJsonObj.addProperty("resultMsg","요청하신 URI는 존재 하지 않습니다. 다시 확인 해 주세요~!");
-        JsonObject revJsonObj = null;
-        try {
-            if(request!=null && request.uri().equals("/connectCnt")){
-                revJsonObj = pushHttpController.getConnectCnt(reqMap);
-            }else if(request.uri()!=null && request.uri().equals("/subscriptionCnt")){
-                revJsonObj = pushHttpController.getSubscriptionCnt(reqMap);
-            }else if(request.uri()!=null && request.uri().equals("/groupUser")){
-//                revJsonObj = pushHttpController.getGroupUserList(reqMap);
-            }
+        httpRequestBean.setCtx(ctx);
+        HttpMsgManager.getInstance().putRequestBean(httpRequestBean);
+        httpRequestBean = null;
 
-            if (revJsonObj != null) {
-                rootJsonObj.add("data", revJsonObj);
-            }
-            rootJsonObj.addProperty("resultCode","200");
-            rootJsonObj.addProperty("resultMsg","SUCCESS");
+        /*
+        logger.debug("## channelReadComplete " + request.uri());
+        HttpController httpController = new HttpController();
+        byte[] responseBytes = null;
+
+        if(request!=null && request.uri().startsWith("/download_file")){
+            responseBytes = "TEST OK".getBytes();
+
+        }else{
+            responseBytes = "TEST FAIL".getBytes();
+        }
+        try {
+            Thread.sleep(1000);
         }catch (Exception e){
-            rootJsonObj.addProperty("resultCode","500");
-            rootJsonObj.addProperty("resultMsg",e.toString());
+            e.printStackTrace();
         }
 
-        String responseJson = rootJsonObj.toString();
-        byte[] resJsonBytes = responseJson.getBytes();
-
-        FullHttpResponse response = new DefaultFullHttpResponse(HTTP_1_1, OK, Unpooled.wrappedBuffer(resJsonBytes));
+        FullHttpResponse response = new DefaultFullHttpResponse(HTTP_1_1, OK, Unpooled.wrappedBuffer(responseBytes));
         // new getMethod
         HttpHeaders headers = request.headers();
         if (!headers.isEmpty()) {
@@ -146,18 +106,12 @@ public class NettyHttpHandler extends ChannelHandlerAdapter {
 
         ctx.flush();
         reset();
-    }
-    @Override
-    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-        System.out.println("################# exceptionCaught:");
-        cause.printStackTrace();
-        ctx.close();
+        */
     }
 
-    private void reset() {
-        request = null;
-        // destroy the decoder to release all resources
-        decoder.destroy();
-        decoder = null;
+    @Override
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+        cause.printStackTrace();
+        ctx.close();
     }
 }

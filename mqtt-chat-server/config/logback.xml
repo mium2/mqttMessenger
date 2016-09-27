@@ -47,7 +47,7 @@
         <appender-ref ref="PUBACK" />
     </logger>
 
-    <logger name="server" level="TRACE">
+    <logger name="server" level="DEBUG">
         <appender-ref ref="STDOUT" />
     </logger>
 

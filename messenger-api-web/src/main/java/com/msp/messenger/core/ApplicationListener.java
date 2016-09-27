@@ -34,14 +34,14 @@ public class ApplicationListener implements ServletContextListener {
     @Override
     public void contextInitialized(ServletContextEvent servletContextEvent) {
         logger.info("## [Web Application Starting...Wait...Please~~!]");
-        sc = servletContextEvent.getServletContext();
-        //Spring Application Context 가져오기
-        wContext = WebApplicationContextUtils.getWebApplicationContext(sc);
-        webProperties = (Properties)wContext.getBean("myProperties");
-        systemSqlMapClient = (SqlSessionTemplate)wContext.getBean("sqlSession");
-
-        // 라이센스 체크
         try {
+            sc = servletContextEvent.getServletContext();
+            //Spring Application Context 가져오기
+            wContext = WebApplicationContextUtils.getWebApplicationContext(sc);
+            webProperties = (Properties)wContext.getBean("myProperties");
+            systemSqlMapClient = (SqlSessionTemplate)wContext.getBean("sqlSession");
+
+            // 라이센스 체크
             MemoryTokenStorage memoryTokenManager = (MemoryTokenStorage)wContext.getBean("memoryTokenStorage");
 
             LicenseValidator.getInstance().initialize();

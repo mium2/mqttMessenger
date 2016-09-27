@@ -18,8 +18,8 @@ public class RedisAllocateUserService {
     private Logger logger = LoggerFactory.getLogger(this.getClass().getName());
     private static final RedisAllocateUserService instance = new RedisAllocateUserService();
     public final static String FAIL_INDEX_APPEND = "FAIL_";
-    public final static String REDIS_BROKERUSER_TABLE = "BROKER_USERCNT";
-    public final static String REDIS_FAILBROKERID_TABLE = "FAIL_BROKERID";
+    public final static String REDIS_BROKERUSER_TABLE = "H_BROKER_USERCNT";
+    public final static String REDIS_FAILBROKERID_TABLE = "H_FAIL_BROKERID";
     private RedisTemplate<String,Object> masterRedisTemplate; //!!!주의!!! 쓰기/삭제 전용
     private RedisTemplate<String,Object> slaveRedisTemplate;  //!!!주의!!! 읽기 전용
     private SqlSessionTemplate sqlSession;

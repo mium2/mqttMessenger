@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <common>
+        <client_make_cnt>5</client_make_cnt>
+        <clientid_prefix>TESTUSER</clientid_prefix>
+        <chatroom_make_cnt>1</chatroom_make_cnt>
+        <chatroom_prefix>ROOMID</chatroom_prefix>
+        <brokerid>BROKER_1</brokerid>
+        <brokerIpPort>211.241.199.139:1883</brokerIpPort>
+    </common>
+
+    <redis>
+        <master>
+            <host>211.241.199.215</host>
+            <port>6379</port>
+            <db>11</db>
+        </master>
+        <slave>
+            <host>211.241.199.217</host>
+            <port>6379</port>
+            <db>11</db>
+        </slave>
+        <sentinels>
+            <use>N</use>
+            <ips>211.241.199.215</ips>
+            <ports>26379</ports>
+        </sentinels>
+    </redis>
+</configuration>

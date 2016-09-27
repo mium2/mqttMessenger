@@ -12,6 +12,7 @@ import com.msp.chat.client.commons.MessageIDGenerator;
 import com.msp.chat.client.exceptions.ConnectionException;
 import com.msp.chat.client.exceptions.PublishException;
 import com.msp.chat.client.exceptions.SubscribeException;
+import com.msp.chat.client.ssl.SSslContextFactory;
 import com.msp.chat.core.mqtt.MQTTException;
 import com.msp.chat.core.mqtt.proto.messages.*;
 
@@ -25,9 +26,11 @@ import io.netty.channel.Channel;
 
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
+import io.netty.handler.ssl.util.SelfSignedCertificate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLException;
 
 /**
@@ -81,7 +84,12 @@ public final class Client {
         m_hostname = host;
         m_port = port;
 //        init();
-        sslInit();
+
+        try {
+            sslInit();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
     
     /**
@@ -109,14 +117,11 @@ public final class Client {
         LOG.info("MACADDRESS :"+m_macAddress);
     }
 
-    protected void sslInit() {
+    protected void sslInit() throws Exception{
+//        SelfSignedCertificate ssc = new SelfSignedCertificate();
+//        SslContext sslCtx = SslContext.newServerContext(ssc.certificate(), ssc.privateKey());
 
-        SslContext sslCtx = null;
-        try {
-            sslCtx = SslContext.newClientContext(InsecureTrustManagerFactory.INSTANCE);
-        } catch (SSLException e) {
-            e.printStackTrace();
-        }
+        SSLContext sslCtx = SSslContextFactory.getClientContext();
 
         group = new NioEventLoopGroup();
         try {
@@ -168,7 +173,6 @@ public final class Client {
             }
             connMsg.setClientID(m_clientID);
             connMsg.setCleanSession(cleanSession);
-            connMsg.setWillTopic("/topic");
             channel.writeAndFlush(connMsg);
 
             //suspend until the server respond with CONN_ACK

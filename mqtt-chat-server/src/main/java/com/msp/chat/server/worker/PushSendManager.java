@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Created by Y.B.H(mium2) on 16. 7. 20..
+ * 브로커 서버가 채팅방 수신자에게 메세지 전달.
  */
 public class PushSendManager {
     private final Logger logger = LoggerFactory.getLogger("server");

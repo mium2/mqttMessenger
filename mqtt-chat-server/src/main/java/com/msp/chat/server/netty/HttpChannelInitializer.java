@@ -4,6 +4,7 @@ import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.http.HttpServerCodec;
+import io.netty.handler.timeout.IdleStateHandler;
 
 /**
  * Created by Y.B.H(mium2) on 16. 7. 27..
@@ -20,7 +21,7 @@ public class HttpChannelInitializer extends ChannelInitializer<SocketChannel> {
         //SSLEngine engine = SecureChatSslContextFactory.getServerContext().createSSLEngine();
         //engine.setUseClientMode(false);
         //p.addLast("ssl", new SslHandler(engine));
-
+        p.addLast("idleStateHandler", new IdleStateHandler(5, 5, 0));
         p.addLast("codec", new HttpServerCodec());
         p.addLast("handler", new NettyHttpHandler());
 

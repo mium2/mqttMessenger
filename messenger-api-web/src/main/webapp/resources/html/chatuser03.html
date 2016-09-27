@@ -1,0 +1,37 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <link rel="stylesheet" type="text/css" href="../css/webchat.css">
+    <script language="JavaScript">
+        var ws;
+        var lastMessageSent;
+        var clientID = "TEST03";
+        var chatRoomUserCnt = 3;
+        var chatRoomID = "1a7851df6c290809b54644e14cadddda";
+        var savedMsgArr = new Array();
+    </script>
+    <script src="../js/jstorage.js"></script>
+    <script src="../js/webchat_common.js" type="text/javascript"></script>
+    <script src="../js/webchat.js" type="text/javascript"></script>
+</head>
+<body>
+<div class="menu">
+    <div class="back"><i class="fa fa-chevron-left"></i> <img src="http://i.imgur.com/DY6gND0.png" draggable="false"/></div>
+    <div class="name">mium chat room</div>
+    <div class="last">18:09</div>
+</div>
+<ol class="chat" id="chat_ol">
+    <!--<li class='other'>-->
+    <!--<div class='avatar'><img src='http://i.imgur.com/DY6gND0.png' draggable='false'/></div>-->
+    <!--<div class='msg'>-->
+    <!--<p><img src='http://i.imgur.com/DY6gND0.png' draggable='false'></p>-->
+    <!--<time>08:07</time><div id="notReadDiv" style="font-size: 0.7rem;color: darkcyan"></div>-->
+    <!--</div>-->
+    <!--</li>-->
+</ol>
+<input class="attatch" type="file" id="attach"/>
+<input class="attachBtn" type="button" id="sendBtn" value="파일전송" onclick="javascript:sendFileArrayBuffer();"/>
+<input class="textarea" type="text" id="message" placeholder="보낼 메세지!"/><div class="emojis"></div>
+</body>
+</html>

@@ -18,6 +18,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Created by Y.B.H(mium2) on 16. 7. 20..
+ * 발송자 or 다른브로커서버가 브로커에게 전달한 메세지 처리 메니저
  */
 public class MqttMsgWorkerManager {
     private final Logger logger = LoggerFactory.getLogger("server");
