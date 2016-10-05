@@ -1,4 +1,4 @@
-package com.mium2.messenger.util;
+package com.mium2.messenger.util.client;
 
 import java.util.concurrent.atomic.AtomicInteger;
 

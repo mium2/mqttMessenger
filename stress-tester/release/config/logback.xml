@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration scan="true" scanPeriod="60 seconds">
-    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <appender name="SERVER" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <prudent>true</prudent>
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
             <fileNamePattern>./logs/logFile.%d{yyyy-MM-dd-HH}.log</fileNamePattern>
@@ -17,8 +17,8 @@
         </layout>
     </appender>
 
-    <logger name="com.mium2.messenger.util" level="INFO">
-        <appender-ref ref="FILE" />
+    <logger name="com.mium2.messenger.util" level="DEBUG">
+        <appender-ref ref="STDOUT" />
     </logger>
 
     <!--<logger name="root" level="DEBUG">-->

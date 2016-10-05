@@ -39,9 +39,9 @@
 
     <dependencies>
         <dependency>
-            <groupId>kr.msp.upns.client</groupId>
-            <artifactId>upns-mqtt-client-core</artifactId>
-            <version>1.1</version>
+            <groupId>com.msp.chat</groupId>
+            <artifactId>mqtt-chat-core</artifactId>
+            <version>1.0.0</version>
         </dependency>
 
         <dependency>
@@ -170,7 +170,7 @@
                         <manifest>
                             <addClasspath>true</addClasspath>
                             <classpathPrefix>lib/</classpathPrefix>
-                            <mainClass>com.mium2.messenger.util.StressTesterMain</mainClass>
+                            <mainClass>com.mium2.messenger.util.StressTester</mainClass>
                         </manifest>
                     </archive>
                 </configuration>
@@ -199,7 +199,7 @@
                     <archive>
                         <manifest>
                             <addClasspath>true</addClasspath>
-                            <mainClass>com.mium2.messenger.util.StressTesterMain</mainClass>
+                            <mainClass>com.mium2.messenger.util.StressTester</mainClass>
                         </manifest>
                     </archive>
                     <descriptorRefs>

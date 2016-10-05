@@ -69,6 +69,9 @@
     <!--채팅방별 메세지 히스토리 저장갯수 설정-->
     <room_msg_max_save_cnt>100</room_msg_max_save_cnt>
 
+    <!--보낸메세지 수신카운트 보내주는 옵션. 성능 고려해야함-->
+    <send_received_ack_yn>N</send_received_ack_yn>
+
     <!-- 파일 메세지일 경우 저장 디렉토리.-->
     <file_save_src>/Users/mium2/project/git_repository/mqttMessenger/temp_file/</file_save_src>
     <download_hosturl>http://211.241.199.139:8888/</download_hosturl>

@@ -58,6 +58,7 @@ public class MqttMsgProcessor {
     private final String ETC_FOLDER = "etc";
     private final String THUMB_FOLDER = "thumb";
     private Set<String> CHKIMGSET;
+    private boolean IS_SEND_RECEIVED_ACK;
 
     public MqttMsgProcessor(){
         SERVER_ID = BrokerConfig.getProperty(BrokerConfig.SERVER_ID);
@@ -67,6 +68,12 @@ public class MqttMsgProcessor {
         DOWNLOAD_HOSTURL = BrokerConfig.getProperty(BrokerConfig.DOWNLOAD_HOSTURL);
         THUMBNAIL_WIDTH = BrokerConfig.getIntProperty(BrokerConfig.THUMBNAIL_WIDTH);
         THUMBNAIL_HEIGHT = BrokerConfig.getIntProperty(BrokerConfig.THUMBNAIL_HEIGHT);
+        String sendReceivedAck = BrokerConfig.getProperty(BrokerConfig.SEND_RECEIVED_ACK_YN);
+        if(sendReceivedAck.equals("Y")){
+            IS_SEND_RECEIVED_ACK = true;
+        }else{
+            IS_SEND_RECEIVED_ACK = false;
+        }
         CHKIMGSET = new HashSet<String>();
         CHKIMGSET.add("jpg");
         CHKIMGSET.add("jpeg");
@@ -254,7 +261,7 @@ public class MqttMsgProcessor {
                 }
                 return;
             }else if(chkSysMsg.equals(BrokerConfig.SYS_REQ_MSG_SENT_INFO)){
-                //TODO : 클라이언트가 메세지아이디 배열을 보내면 해당 메세지가 발송상태 카운트를 보내준다.
+                //TODO : 클라이언트가 메세지아이디 배열을 보내면 해당 메세지가 발송상태 카운트를 보내주는 로직 구현.
                 return;
             }else if(chkSysMsg.equals(BrokerConfig.SYS_REQ_MSG_FILE)){
                 // 파일보내기 메세지 처리
@@ -632,14 +639,16 @@ public class MqttMsgProcessor {
                 //저장된 SUB_clientID+messageID로 저장된 발송성공확인용 임시발송메모리캐쉬(EHCache)에서 삭제하여 OFF메세지로 가지 않게 삭제처리.
                 CachePublishStore.getInstance().remove(subClientID, messageID);
             }
-            //TODO : 메세지 발송 사용자에게 발송완료카운트를 알려주고 싶다. 어떻게 하는것이 가장 합리적인가?
-            // 방안 1. ACK가 들어올때 마다 해당 pubClientID+messageID를 키로 ACK카운트를 빼고 0이 되었을시 발행자에 통지한다. 그 전에는 클라이요청시에 응답한다.
 
-            if(pubClientID!=null) {
-                redisStorageService.upPubMsgAckCnt(pubClientID,messageID);
-            }else{
-                if(LOGGER.isErrorEnabled()){
-                    LOGGER.error("###[MqttMsgProcessor processPubAck] CachePublishStore not exist and offMessage Store not exist. subClientID :{} , messageID:{}",subClientID,messageID);
+            // 메세지 발송사용자에게 수신카운트를 알려 주는 옵션에 따라 처리
+            // 처리방법 :  ACK가 들어올때 마다 해당 pubClientID+messageID를 키로 ACK카운트를 빼고 0이 되었을시 발행자에 통지한다. 그 전에는 클라이요청시에 응답한다.
+            if(IS_SEND_RECEIVED_ACK) {
+                if (pubClientID != null) {
+                    redisStorageService.upPubMsgAckCnt(pubClientID, messageID);
+                } else {
+                    if (LOGGER.isErrorEnabled()) {
+                        LOGGER.error("###[MqttMsgProcessor processPubAck] CachePublishStore not exist and offMessage Store not exist. subClientID :{} , messageID:{}", subClientID, messageID);
+                    }
                 }
             }
         } catch (Exception e) {

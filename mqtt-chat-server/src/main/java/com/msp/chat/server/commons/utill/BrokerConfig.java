@@ -63,6 +63,8 @@ public class BrokerConfig {
 
     public static String ROOM_MSG_MAX_SAVE_CNT="room_msg_max_save_cnt";
 
+    public static String SEND_RECEIVED_ACK_YN = "send_received_ack_yn";
+
     public static String FILE_SAVE_SRC="file_save_src";
     public static String DOWNLOAD_HOSTURL="download_hosturl";
     public static String THUMBNAIL_WIDTH="thumbnail_width";
@@ -114,6 +116,8 @@ public class BrokerConfig {
         properties.put(SQLITE_SRC, xml.getString(SQLITE_SRC,""));
         properties.put(ONEUSERMULTIDEVICE, xml.getString(ONEUSERMULTIDEVICE,"Y"));
         properties.put(DBSTORAGEUSE_YN, xml.getString(DBSTORAGEUSE_YN,"N"));
+
+        properties.put(SEND_RECEIVED_ACK_YN, xml.getString(SEND_RECEIVED_ACK_YN,"Y"));
 
         properties.put(ROOM_MSG_MAX_SAVE_CNT, xml.getString(ROOM_MSG_MAX_SAVE_CNT,"100"));
         properties.put(FILE_SAVE_SRC, xml.getString(FILE_SAVE_SRC,""));

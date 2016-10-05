@@ -2,22 +2,17 @@
 <configuration>
     <common>
         <clientid_start_pos>1</clientid_start_pos>
-        <clientid_end_pos>10</clientid_end_pos>
+        <clientid_end_pos>100</clientid_end_pos>
         <clientid_prefix>TESTUSER</clientid_prefix>
         <chatroom_start_pos>1</chatroom_start_pos>
-        <chatroom_end_pos>2</chatroom_end_pos>
+        <chatroom_end_pos>10</chatroom_end_pos>
         <chatroom_prefix>ROOMID</chatroom_prefix>
         <brokerid>BROKER_1</brokerid>
-        <brokerIpPort>211.241.199.215:1883</brokerIpPort>
-        <!--자동 발송기능 사용 유무. 클라이언트 접속 테스트만 할 경우 N로 설정-->
-        <auto_message_send_yn>Y</auto_message_send_yn>
+        <brokerIpPort>211.241.199.139:1883</brokerIpPort>
         <!-- 무작위로 룸아이디를 설정해 해당 룸에 메세지 전송 쓰레드-->
         <autoSendThreadCnt>5</autoSendThreadCnt>
         <!--위의 발송 쓰레드 발송 후 Sleep 주기. MiliSecond-->
         <autoSendInterval>500</autoSendInterval>
-        <!-- 브로커서버에 컨넥션하는 간격 -->
-        <connect_sleep_interval>10</connect_sleep_interval>
-
     </common>
 
     <redis>

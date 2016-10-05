@@ -5,10 +5,8 @@ import ch.qos.logback.classic.joran.JoranConfigurator;
 import ch.qos.logback.core.joran.spi.JoranException;
 import com.mium2.messenger.util.bean.ChatRoomInfoBean;
 import com.mium2.messenger.util.bean.UserInfoBean;
-import kr.msp.upns.client.mqttv3.MqttClient;
-import kr.msp.upns.client.mqttv3.MqttConnectOptions;
-import kr.msp.upns.client.mqttv3.MqttException;
-import kr.msp.upns.client.mqttv3.internal.MemoryPersistence;
+import com.mium2.messenger.util.client.BrokerConnectManager;
+import com.mium2.messenger.util.client.MessageWorker;
 import org.apache.commons.configuration.ConfigurationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,6 +14,8 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 
 import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * Created by Y.B.H(mium2) on 2016. 9. 22..
@@ -23,28 +23,43 @@ import java.util.*;
 public class StressTester {
     private final static Logger logger = LoggerFactory.getLogger("com.mium2.messenger.util");
 
+    private static StressTester instance = null;
     public static ApplicationContext ctx = null;
     public final static String SERVER_CONF_FILE = "./config/config.xml";
     public final static String LOG_CONF_FILE = "./config/logback.xml";
     private final static String VERSION = "1.0.0";
 
-    private Map<String,MqttClient> mqttClientMap = new HashMap<String, MqttClient>();
     private Map<String,String> roomIDSenderMap = new HashMap<String, String>();
     private RedisUserService redisUserService;
+    private BrokerConnectManager brokerConnectManager;
 
+    private int createUserStartPos =1;
+    private int createUserEndPos = 100;
     private int createUserCnt = 0;
-    private String testUserPrefix = "";
+    private String clientUserPrefix = "";
+    private int createRoomStartPos = 1;
+    private int createRoomEndPos = 2;
     private int createRoomCnt = 0;
-    private String testRoomPrefix = "";
+    private String rooomIdPrefix = "";
     private String brokerID = "";
     private String appid = "com.uracle.test";
     private String hphonePrefix = "010000";
     private String brokerIpPort = "";
+    private long broker_connect_sleep = 0;
+
+    private StressTester(){}
+
+    public static StressTester getInstance(){
+        if(instance==null){
+            instance = new StressTester();
+        }
+        return instance;
+    }
 
     public static void main(String[] args){
         System.out.println("Server started, version " + VERSION);
         logger.info("########################################################");
-        logger.info("####   MQTT-MESSENGER-SERVER "+ VERSION +"Starting~~!    ####");
+        logger.info("####   STRESS MESSENGER TESTER "+ VERSION +"Starting~~!    ####");
         logger.info("########################################################");
 
         //Logger 설정
@@ -58,6 +73,9 @@ public class StressTester {
             logger.error(je.getMessage());
             return;
         }
+        logger.info("########################################################");
+        logger.info("####   Logger Loader Success~~!    ####");
+        logger.info("########################################################");
         //브로커서버 config 설정 로드
         try {
             ConfigLoader.Load(SERVER_CONF_FILE);
@@ -65,23 +83,22 @@ public class StressTester {
             logger.error(e.getMessage());
             return;
         }
-
+        logger.info("########################################################");
+        logger.info("####   Config Loader Success~~!    ####");
+        logger.info("########################################################");
         ctx = new AnnotationConfigApplicationContext(ApplicationConfig.class);  //스프링 Config 호출
 
-        StressTester stressTester = new StressTester();
+        // 유저가입,로그인처리,대화방 개설
+        StressTester.getInstance().init();
 
-        stressTester.init();
 
-//        // 메신저 클라이언트 브로커 연결 세션 만들기
-//        stressTester.makeConnectChannels();
-//
-//        // 부하테스트를 위한 자동 메세지 발송
-//        for(int i=0; i<1; i++){
-//            AutoMsgSendThread autoMsgSendThread = new AutoMsgSendThread("Thread-"+i,stressTester);
-//            autoMsgSendThread.start();
-//        }
+        ExecutorService threadPool = Executors.newFixedThreadPool(3);
+        for(int i=0; i<3  ; i ++) {
+            threadPool.execute( new MessageWorker() );
+        }
+        // 메신저 클라이언트 브로커 연결 세션 만들기
+        StressTester.getInstance().makeConnectChannels();
 
-        stressTester.putRedisTest();
     }
 
     private void putRedisTest(){
@@ -91,28 +108,37 @@ public class StressTester {
     private void init(){
         // 유저등록
         redisUserService = (RedisUserService)ctx.getBean("redisUserService");
-        createUserCnt = ConfigLoader.getIntProperty(ConfigLoader.CLIENT_MAKE_CNT);
-        testUserPrefix = ConfigLoader.getProperty(ConfigLoader.CLIENT_PREFIX);
-        createRoomCnt = ConfigLoader.getIntProperty(ConfigLoader.CHATROOM_MAKE_CNT);
-        testRoomPrefix = ConfigLoader.getProperty(ConfigLoader.CHATROOM_PREFIX);
+        createUserStartPos = ConfigLoader.getIntProperty(ConfigLoader.CLIENT_START_POS);
+        createUserEndPos = ConfigLoader.getIntProperty(ConfigLoader.CLIENT_END_POS);
+        createUserCnt = createUserEndPos-createUserStartPos+1;
+        clientUserPrefix = ConfigLoader.getProperty(ConfigLoader.CLIENT_PREFIX);
+
+        createRoomStartPos = ConfigLoader.getIntProperty(ConfigLoader.CHATROOM_START_POS);
+        createRoomEndPos = ConfigLoader.getIntProperty(ConfigLoader.CHATROOM_END_POS);
+        createRoomCnt = createRoomEndPos-createRoomStartPos+1;
+        rooomIdPrefix = ConfigLoader.getProperty(ConfigLoader.CHATROOM_PREFIX);
         brokerID = ConfigLoader.getProperty(ConfigLoader.BROKERID);
         appid = "com.uracle.test";
         hphonePrefix = "010000";
         brokerIpPort = ConfigLoader.getProperty(ConfigLoader.BROKERIP_PORT);
 
-//        createChatUser();
-//        loginProcess();
-//        createChatRoom();
+        broker_connect_sleep = ConfigLoader.getLongProperty(ConfigLoader.CONNECT_SLEEP_INTERVAL);
+
+        logger.info("### CREATE USER CNT : {}    CREATE ROOM CNT: {}" , createUserCnt, createRoomCnt);
+
+        createChatUser();
+        loginProcess();
+        createChatRoom();
     }
 
     /**
      * 챗팅유저 생성
      */
     private void createChatUser(){
-        for(int i=1; i<=createUserCnt; i++) {
+        for(int i=createUserStartPos; i<=createUserEndPos; i++) {
             UserInfoBean userInfoBean = new UserInfoBean();
-            userInfoBean.setUSERID(testUserPrefix+i);
-            userInfoBean.setNICKNAME(testUserPrefix + i);
+            userInfoBean.setUSERID(clientUserPrefix+i);
+            userInfoBean.setNICKNAME(clientUserPrefix + i);
             userInfoBean.setAPPID(appid);
             userInfoBean.setDEVICEID("DEVICEID" + i);
             userInfoBean.setHP_NUM(hphonePrefix + i);
@@ -134,9 +160,9 @@ public class StressTester {
      * 로그인
      */
     private void loginProcess(){
-        for(int i=1; i<=createUserCnt; i++) {
+        for(int i=createUserStartPos; i<=createUserEndPos; i++) {
             try {
-                redisUserService.putLoginID(testUserPrefix+i, brokerID);
+                redisUserService.putLoginID(clientUserPrefix+i, brokerID);
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -144,7 +170,7 @@ public class StressTester {
     }
 
     /**
-     * 챗팅방 생성
+     * 대화방 생성
      */
     private void createChatRoom(){
         Set<String> inviteUserIdset = new HashSet<String>();
@@ -152,19 +178,24 @@ public class StressTester {
         List<Object> inviteUserIdlist = new ArrayList<Object>();
         List<Object> hpNums = new ArrayList<Object>();
         String ownId = "";
-        // 그룹 채팅방 만들기
-        for(int i=1; i<=createRoomCnt; i++){
+        // 대화방 만들기
+        for(int i=createRoomStartPos; i<=createRoomEndPos; i++){
             int inviteUserCnt = (int) (Math.random() * 9)+2; // 2~10 사이의 램덤 수
             for(int j=0; j<inviteUserCnt; j++){
-                int userNum = (int) (Math.random() * createUserCnt)+1; //
-                String inviteUserID = testUserPrefix+userNum;
-                String hphoneNum = hphonePrefix+userNum;
+                int inviteUserRandomNum = ((int)(Math.random() * createUserEndPos)-createUserStartPos)+1; // startPos ~ endPos 사이에 랜덤숫자
+                if(inviteUserRandomNum<createUserStartPos){
+                    inviteUserRandomNum = createUserStartPos;
+                }
+                String inviteUserID = clientUserPrefix+(inviteUserRandomNum+1);
+
+                String hphoneNum = hphonePrefix+inviteUserRandomNum;
                 if(!inviteUserIdset.contains(inviteUserID)) {
                     inviteUserIdlist.add(inviteUserID);
                     userID_brokerIDset.add(inviteUserID + "|" + brokerID);
                     hpNums.add(hphoneNum);
                     inviteUserIdset.add(inviteUserID);
                 }
+                
                 if(j==0){
                     ownId = inviteUserID;
                 }
@@ -172,8 +203,8 @@ public class StressTester {
 
             ChatRoomInfoBean chatRoomInfoBean = new ChatRoomInfoBean();
             chatRoomInfoBean.setAPPID(appid);
-            chatRoomInfoBean.setROOMID(testRoomPrefix + i);
-            chatRoomInfoBean.setROOM_NAME(testRoomPrefix + i);
+            chatRoomInfoBean.setROOMID(rooomIdPrefix + i);
+            chatRoomInfoBean.setROOM_NAME(rooomIdPrefix + i);
             chatRoomInfoBean.setROOM_OWNER(ownId);
             chatRoomInfoBean.setUSERIDS(inviteUserIdlist);
             chatRoomInfoBean.setHPNUMS(hpNums);
@@ -182,7 +213,7 @@ public class StressTester {
             } catch (Exception e) {
                 e.printStackTrace();
             }
-            //발송자아이디를 구하기 위해 방에 초대된 사용자수의 랜덤한 인덱스를 추출한다.
+            //발송자아이디를 구하기 위해 방에 초대된 사용자수의 랜덤한 인덱스번호를 추출한다.
             int sendRandomIndex = (int)(Math.random() * inviteUserIdlist.size());
             String senderID = (String)inviteUserIdlist.get(sendRandomIndex);
             //대화방에 발송자아이디를 랜덤하게 넣는다.
@@ -200,41 +231,13 @@ public class StressTester {
      * @return
      */
     private void makeConnectChannels(){
-        MqttClient mConnection = null;
-        try {
-            String BROKER_URL = "tcp://"+brokerIpPort;
-            int MQTT_KEEP_ALIVE = 120;
-            for(int i=1; i<=createUserCnt; i++) {
-                String clientID = testUserPrefix+i;
-                mConnection = new MqttClient(BROKER_URL, clientID, new MemoryPersistence());
-                mConnection.setCallback(new MessengerCallback());
-                MqttConnectOptions mqttConnectOptions = new MqttConnectOptions();
-                mqttConnectOptions.setCleanSession(false);
-                mqttConnectOptions.setConnectionTimeout(10);
-                mqttConnectOptions.setKeepAliveInterval(MQTT_KEEP_ALIVE);
-                mConnection.connect(mqttConnectOptions);
-                mqttClientMap.put(clientID, mConnection);
-            }
-        } catch (Exception e) {
-            if (e instanceof MqttException) {
-                //서버의 ConnectAck 에러번호가 6일때는 다른 브로커서버로 접속하라고 구현
-                if (((MqttException) e).getReasonCode() == 6) {
-                    logger.error("접속할 다른 서버를 알아내는 로직 구현해야함");
-                }
-            }else {
-                logger.error("#####에러:" + e.getMessage());
-            }
-        }
+        String[] brokerIpPortArr = brokerIpPort.split(":");
+        String brokerIP = brokerIpPortArr[0];
+        int brokerPort = Integer.parseInt(brokerIpPortArr[1]);
 
-        logger.info("#### makeChannelSize :"+mqttClientMap.size());
-    }
-
-    private void randomMsgSend(){
-        long statTime = System.currentTimeMillis();
-//        mqttClient.publish("A_TOPIC", msgMessage.toString().getBytes(), 1, false, j);
-        long endTime = System.currentTimeMillis();
-
-        logger.debug("경과시간:" + (endTime-statTime));
+        brokerConnectManager = BrokerConnectManager.getInstance();
+        brokerConnectManager.init(brokerIP,brokerPort,clientUserPrefix,createUserStartPos,createUserEndPos);
+        brokerConnectManager.reqAllConnection();
     }
 
 
@@ -246,15 +249,16 @@ public class StressTester {
         this.redisUserService = redisUserService;
     }
 
-    public MqttClient getMqttClient(String clientID){
-        return mqttClientMap.get(clientID);
-    }
 
+    /**
+     * 만들어진 대화방 중 랜덤하게 발송할 대화방 아이디와 대화방에 메세지를 발송할 아이디를 리턴해주는 함수.
+     * @return
+     */
     public String getRandomRoomIDSenderIdMap() {
-        int randomRoomIndex = (int)(Math.random() * createUserCnt)+1;
-        String senderid = testUserPrefix+randomRoomIndex;
-        String roomid = roomIDSenderMap.get(senderid);
+        int randomRoomIndex = (int)(Math.random() * createRoomCnt)+1;
+        String randomRoomID = rooomIdPrefix+randomRoomIndex;
+        String senderid = roomIDSenderMap.get(randomRoomID);
 
-        return roomid+"|"+senderid;
+        return randomRoomID+"|"+senderid;
     }
 }

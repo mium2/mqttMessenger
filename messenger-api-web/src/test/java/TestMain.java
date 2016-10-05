@@ -43,12 +43,24 @@ public class TestMain {
 
 //        DateUtil.getMakeTimeStamp(8,0);
 
-        new TestMain().makeChatRoomID();
+//        new TestMain().makeChatRoomID();
+
+        new TestMain().encode();
     }
 
 
     public TestMain(){}
 
+
+    private void encode(){
+        String encodeString ="%28%EA%B4%91%EA%B3";
+        try {
+            String decodeString  = URLDecoder.decode(encodeString,"UTF-8");
+            System.out.println(decodeString);
+        } catch (UnsupportedEncodingException e) {
+            e.printStackTrace();
+        }
+    }
 
     private void makeChatRoomID(){
         TreeSet<Object> reqInviteUserIDTreeSet = new TreeSet<Object>();

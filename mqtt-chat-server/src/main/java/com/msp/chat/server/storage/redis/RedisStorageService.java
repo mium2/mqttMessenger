@@ -41,6 +41,7 @@ public class RedisStorageService {
     public String OFFMSG_EXPIRE_KEYTABLE = null;
     public int CACHE_USER_MSG_COUNT = 0;
     public long EXPIRE_MILISECOND = 0;
+    private boolean IS_SEND_RECEIVED_ACK; //발송자에게 수신카운트 정보 보낼지 여부
 
     public static String ORG_PUBLISH_LAST_CLEAN_DAY = "";
 
@@ -52,7 +53,14 @@ public class RedisStorageService {
 
     private Gson gson = new Gson();
 
-    public RedisStorageService(){}
+    public RedisStorageService(){
+        String sendReceivedAck = BrokerConfig.getProperty(BrokerConfig.SEND_RECEIVED_ACK_YN);
+        if(sendReceivedAck.equals("Y")){
+            IS_SEND_RECEIVED_ACK = true;
+        }else{
+            IS_SEND_RECEIVED_ACK = false;
+        }
+    }
 
 
     public void putUserIDBrokerID(String clientID, String brokerID){
@@ -89,11 +97,12 @@ public class RedisStorageService {
             // 맨 처음거 하나를 지운다.
             masterRedisTemplate.opsForList().leftPop(REDIS_ROOMID_MSG + publishEvent.getTopic());
         }
-
-        masterRedisTemplate.opsForHash().put(REDIS_PUBMSG, orgPublishKey, gson.toJson(pubMsgBean));
-        masterRedisTemplate.opsForHash().put(REDIS_PUBACK_CNT, orgPublishKey, "" + subscriberCnt);
-        if(logger.isTraceEnabled()){
-            logger.trace("###[RedisStorageService putPubMsg] orgPublishKey : {} , subscriberCnt : {}", orgPublishKey, subscriberCnt);
+        if(IS_SEND_RECEIVED_ACK) {
+            masterRedisTemplate.opsForHash().put(REDIS_PUBMSG, orgPublishKey, gson.toJson(pubMsgBean));
+            masterRedisTemplate.opsForHash().put(REDIS_PUBACK_CNT, orgPublishKey, "" + subscriberCnt);
+            if (logger.isTraceEnabled()) {
+                logger.trace("###[RedisStorageService putPubMsg] orgPublishKey : {} , subscriberCnt : {}", orgPublishKey, subscriberCnt);
+            }
         }
     }
 

@@ -49,6 +49,9 @@ public class Server {
         LOGGER.info("########################################################");
         //Logger 설정
         LoggerContext context = (LoggerContext) LoggerFactory.getILoggerFactory();
+        LOGGER.info("########################################################");
+        LOGGER.info("####   LOGGER SET STARTTING...! ####");
+        LOGGER.info("########################################################");
         try {
             JoranConfigurator configurator = new JoranConfigurator();
             configurator.setContext(context);
@@ -58,6 +61,9 @@ public class Server {
             LOGGER.error(je.getMessage());
             return;
         }
+        LOGGER.info("########################################################");
+        LOGGER.info("####   LOGGER SET SUCCESS~~! ####");
+        LOGGER.info("########################################################");
         //브로커서버 config 설정 로드
         try {
             BrokerConfig.Load(SERVER_CONF_FILE);
@@ -66,6 +72,9 @@ public class Server {
             return;
         }
 
+        LOGGER.info("########################################################");
+        LOGGER.info("####   CONFIG LOAD SUCCESS  ####");
+        LOGGER.info("########################################################");
         //라이센스 체크
         try {
             Properties properties = System.getProperties();
@@ -94,6 +103,10 @@ public class Server {
 
         ctx = new AnnotationConfigApplicationContext(ApplicationConfig.class);  //스프링 Config 호출
 
+        LOGGER.info("########################################################");
+        LOGGER.info("####   SPRING APPLICATION SUCCESS  ####");
+        LOGGER.info("########################################################");
+
         Object obj = ctx.getBean("masterRedisTemplate");
         if(obj!=null){
             try{
@@ -107,11 +120,19 @@ public class Server {
             System.exit(-1);
         }
 
+        LOGGER.info("########################################################");
+        LOGGER.info("####   REDIS CONNECTED SUCCESS  ####");
+        LOGGER.info("########################################################");
+
         // 다국어 지원
         LocaleUtils.init();
         try {
             //스토리지 ehcache설정 초기화 및 MqttMsgWorkManager 구동
             MqttMsgWorkerManager.getInstance().startWorkers();
+
+            LOGGER.info("########################################################");
+            LOGGER.info("####   EHCACHE SETTING SUCCESS  ####");
+            LOGGER.info("########################################################");
 
             // 푸시발송 메니저 구동
             PushSendManager.getInstance().startWorkers();
