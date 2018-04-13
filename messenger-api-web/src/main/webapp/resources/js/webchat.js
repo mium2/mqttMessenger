@@ -3,8 +3,8 @@
  */
 if ("WebSocket" in window){
     // Let us open a web socket
-    ws = new WebSocket("ws://52.79.96.155:28080/webchat");
-    //ws = new WebSocket("ws://localhost:28080/webchat");
+    //ws = new WebSocket("ws://52.79.96.155:28080/webchat");
+    ws = new WebSocket("ws://211.241.199.139:28080/webchat");
     ws.binaryType = "arraybuffer";
     ws.onopen = function() {
         var connectMsg="CONNECT|"+clientID;

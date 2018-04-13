@@ -5,6 +5,7 @@ import com.msp.chat.server.commons.utill.BrokerConfig;
 import com.msp.chat.server.commons.utill.DebugUtils;
 import com.msp.chat.server.config.ApplicationConfig;
 import com.msp.chat.server.storage.redis.RedisStorageService;
+import com.sun.jmx.remote.internal.ClientListenerInfo;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.io.FileUtils;
@@ -12,6 +13,8 @@ import org.junit.Test;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+import org.springframework.data.redis.connection.jedis.JedisConnection;
+import org.springframework.data.redis.connection.jedis.JedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.types.RedisClientInfo;
 
@@ -27,6 +30,7 @@ import java.nio.IntBuffer;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
+import java.util.List;
 
 /**
  * Created by Y.B.H(mium2) on 16. 4. 11..
@@ -60,7 +64,19 @@ public class TestMain {
 
 		TestMain testMain = new TestMain();
 //        testMain.testSplit();
-		testMain.redisTest();
+//		testMain.redisTest();
+		testMain.redisSlaveConTest();
+
+	}
+
+
+	private void redisSlaveConTest(){
+		RedisTemplate redisTemplate = (RedisTemplate)ctx.getBean("masterRedisTemplate");
+
+
+
+		System.out.println("#####");
+
 
 	}
 

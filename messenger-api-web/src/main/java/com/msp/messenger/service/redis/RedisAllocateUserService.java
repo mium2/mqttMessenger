@@ -88,6 +88,10 @@ public class RedisAllocateUserService {
         Set<Map.Entry<Object,Object>> redis_upnsUserCntMapSet = redis_upnsUserCntMap.entrySet();
         for(Map.Entry<Object,Object> mapEntry: redis_upnsUserCntMapSet){
             String key = mapEntry.getKey().toString();
+            //서비스로 등록되어 있지 않은 브로커아이디는 무시처리
+            if(!SERVERINFO_MAP.containsKey(key)){
+                continue;
+            }
             if(!key.startsWith(FAIL_INDEX_APPEND)) { //장애중인 브로커서버에는 할당하지 않도록 하기 위해.
                 int value = 0;
                 Object obj = mapEntry.getValue();

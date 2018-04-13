@@ -70,8 +70,8 @@ public class MemoryTokenManager {
                 return resultMap;
             }
 
-            //로그인 한 아이디인지 검증
-            if(!redisUserService.chkLoginID(userid)){
+            //임시사용자 발급토큰(서비스 가입시 사용)사용자가 아닐 경우 로그인 한 아이디인지 검증
+            if(!userid.equals(Constants.TEMP_AUTH_USERID) && !redisUserService.chkLoginID(userid)){
                 // 인증실패
                 resultMap.put(Constants.RESULT_CODE_KEY, Constants.ERR_3010);
                 resultMap.put(Constants.RESULT_MESSAGE_KEY,Constants.ERR_3010_MSG);
@@ -88,13 +88,23 @@ public class MemoryTokenManager {
                 }
             }
 
-            // userid & license_secretKey 해쉬키값 비교
-            String compareHash = OAuth2Util.getHmacSha256(expireTimeMillis + "&" + userid + "&" + deviceid).substring(0, 16);
+            String compareHash;
+            // 서비스 가입을 위한 임시발급토큰 사용자 userid & license_secretKey 해쉬키값 비교
+            if(userid.equals(Constants.TEMP_AUTH_USERID)) {
+                compareHash = OAuth2Util.getHmacSha256(expireTimeMillis + "&" + Constants.TEMP_AUTH_USERID + "&" + deviceid).substring(0, 16);
+            //사용자 userid & license_secretKey 해쉬키값 비교
+            }else{
+                compareHash = OAuth2Util.getHmacSha256(expireTimeMillis + "&" + userid + "&" + deviceid).substring(0, 16);
+            }
             if (!compareHash.equals(clientHash)) {
                 // 토큰이 위변조 되었으므로 인증 에러 처리.
                 resultMap.put(Constants.RESULT_CODE_KEY, Constants.ERR_3004);
                 resultMap.put(Constants.RESULT_MESSAGE_KEY, Constants.ERR_3004_MSG);
                 return resultMap;
+            }
+            // 서비스 가입을 위한 임시 인증성공은 응답코드를 205 내려줌.
+            if(userid.equals(Constants.TEMP_AUTH_USERID)){
+                resultMap.put(Constants.RESULT_CODE_KEY,Constants.RESULT_CODE_HOLD_OK);
             }
             // 인증이 성공하면 토큰에서 추출한 유저아이디를 컨트롤에 넘겨줌.
             resultMap.put("USERID",userid);

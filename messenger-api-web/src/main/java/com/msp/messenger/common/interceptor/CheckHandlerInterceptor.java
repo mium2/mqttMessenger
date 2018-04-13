@@ -50,6 +50,7 @@ public class CheckHandlerInterceptor implements HandlerInterceptor {
                 if(request.getParameter("USERID")==null){
                     authResultMap.put(Constants.RESULT_CODE_KEY, Constants.ERR_3013);
                     authResultMap.put(Constants.RESULT_MESSAGE_KEY, Constants.ERR_3013_MSG);
+                    request.setAttribute("authResultMap",authResultMap);
                     return true;
                 }else {
                     logger.debug("IP 인증성공!");
@@ -62,18 +63,21 @@ public class CheckHandlerInterceptor implements HandlerInterceptor {
             if(request.getParameter("APPID")==null){
                 authResultMap.put(Constants.RESULT_CODE_KEY, Constants.ERR_3003);
                 authResultMap.put(Constants.RESULT_MESSAGE_KEY, Constants.ERR_3003_MSG);
+                request.setAttribute("authResultMap",authResultMap);
                 return true;
             }
 
             if(request.getParameter("AUTHKEY")==null){
                 authResultMap.put(Constants.RESULT_CODE_KEY, Constants.ERR_3002);
                 authResultMap.put(Constants.RESULT_MESSAGE_KEY,Constants.ERR_3002_MSG);
+                request.setAttribute("authResultMap",authResultMap);
                 return true;
             }
 
             if(request.getParameter("DEVICEID")==null){
                 authResultMap.put(Constants.RESULT_CODE_KEY, Constants.ERR_3011);
                 authResultMap.put(Constants.RESULT_MESSAGE_KEY,Constants.ERR_3011_MSG);
+                request.setAttribute("authResultMap",authResultMap);
                 return true;
             }
             authResultMap = memoryTokenManager.validateAccessToken( request.getParameter("AUTHKEY"), request.getParameter("APPID"), request.getParameter("DEVICEID"));

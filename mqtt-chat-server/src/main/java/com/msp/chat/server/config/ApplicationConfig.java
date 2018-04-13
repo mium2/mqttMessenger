@@ -154,8 +154,8 @@ public class ApplicationConfig {
     public RedisTemplate masterRedisTemplate(){
         RedisTemplate redisTemplate = new RedisTemplate();
         redisTemplate.setConnectionFactory(jedisConnFactory());
-        redisTemplate.setEnableTransactionSupport(true);
-        redisTemplate.setExposeConnection(true);
+        redisTemplate.setEnableTransactionSupport(false);
+        redisTemplate.setExposeConnection(false);
         redisTemplate.setKeySerializer(stringRedisSerializer());
         redisTemplate.setValueSerializer(stringRedisSerializer());
         redisTemplate.setHashKeySerializer(stringRedisSerializer());
@@ -181,7 +181,7 @@ public class ApplicationConfig {
     public RedisTemplate slaveRedisTemplate(){
         RedisTemplate redisTemplate = new RedisTemplate();
         redisTemplate.setConnectionFactory(slaveJedisConnectionFactory());
-        redisTemplate.setExposeConnection(true);
+        redisTemplate.setExposeConnection(false);
         redisTemplate.setKeySerializer(stringRedisSerializer());
         redisTemplate.setValueSerializer(stringRedisSerializer());
         redisTemplate.setHashKeySerializer(stringRedisSerializer());

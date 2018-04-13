@@ -7,6 +7,7 @@ public class MakeRoomBean {
     private String AUTHKEY = "";
     private String APPID = "";
     private String USERID = "";
+    private String DEVICEID = "";
     private String INVITE_USERIDS = "";
     private String ROOMID = "";
     private String ROOMNAME = "";
@@ -35,6 +36,14 @@ public class MakeRoomBean {
 
     public void setUSERID(String USERID) {
         this.USERID = USERID;
+    }
+
+    public String getDEVICEID() {
+        return DEVICEID;
+    }
+
+    public void setDEVICEID(String DEVICEID) {
+        this.DEVICEID = DEVICEID;
     }
 
     public String getINVITE_USERIDS() {

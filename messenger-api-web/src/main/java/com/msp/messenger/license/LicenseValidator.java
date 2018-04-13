@@ -33,7 +33,7 @@ public class LicenseValidator implements ResourceLoaderAware{
 
     private String licenseFileSrc = "WEB-INF/classes/config/license.key";
 
-    private String indexFileSrc = "WEB-INF/classes/config/license.cer}";
+    private String indexFileSrc = "WEB-INF/classes/config/license.cer";
 
     private ResourceLoader resourceLoader;
 

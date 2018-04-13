@@ -127,13 +127,15 @@ public class UserController {
     @RequestMapping(value = "/checkUserAndRegist.ctl",produces = "application/json; charset=utf8")
     public @ResponseBody
     String subscribeChatService(HttpServletRequest request, HttpServletResponse response, @ModelAttribute UserInfoBean req_userInfoBean){
-        Map<String,String> resultHeadMap = new HashMap<String, String>();
-        resultHeadMap.put(Constants.RESULT_CODE_KEY,Constants.RESULT_CODE_OK);
-        resultHeadMap.put(Constants.RESULT_MESSAGE_KEY,Constants.RESULT_MESSAGE_OK);
+        Map<String,String> resultHeadMap = (Map<String, String>) request.getAttribute("authResultMap");
+        if(resultHeadMap==null) {
+            resultHeadMap = new HashMap<String, String>();
+            resultHeadMap.put(Constants.RESULT_CODE_KEY, Constants.RESULT_CODE_OK);
+            resultHeadMap.put(Constants.RESULT_MESSAGE_KEY, Constants.RESULT_MESSAGE_OK);
+        }
         Map<String,String> resultBodyMap = new HashMap<String, String>();
         String returnAuthKey = request.getParameter("AUTHKEY");
 
-        resultHeadMap = (Map<String, String>) request.getAttribute("authResultMap");
         boolean isPushServiceApiCall = false; // 푸시서비스 가입 호출 여부
 
         if(req_userInfoBean.getAPPID().equals("") || req_userInfoBean.getDEVICEID().equals("")
@@ -177,7 +179,7 @@ public class UserController {
             if (!isRegistered.equals("Y")) {
                 // 최초가입이므로 토큰이 임시토큰인지 확인 한다.(임시토큰 여부 resultHeadMap.get(Constants.RESULT_CODE_KEY) 값이 205 이어야 한다.)
                 // AuthKey 검사결과 처리
-                if (!resultHeadMap.get(Constants.RESULT_CODE_KEY).equals(Constants.RESULT_CODE_HOLD_OK)) {  //임시발급 인증키가 아니면 인증에러리턴.
+                if (!resultHeadMap.get(Constants.RESULT_CODE_KEY).equals(Constants.RESULT_CODE_OK) && !resultHeadMap.get(Constants.RESULT_CODE_KEY).equals(Constants.RESULT_CODE_HOLD_OK)) {  //임시발급 인증키가 아니면 인증에러리턴.
                     // 인증에러
                     resultHeadMap.put(Constants.RESULT_CODE_KEY, Constants.ERR_3000);
                     resultHeadMap.put(Constants.RESULT_MESSAGE_KEY, Constants.ERR_3000_MSG);
@@ -264,11 +266,6 @@ public class UserController {
                     resultHeadMap.put(Constants.RESULT_CODE_KEY, Constants.ERR_3009);
                     resultHeadMap.put(Constants.RESULT_MESSAGE_KEY, Constants.ERR_3009_MSG);
                     return responseJson(resultHeadMap, resultBodyMap, req_userInfoBean.getAPPID());
-                }else{
-                    //임시토큰인 아닌 지속적으로 사용가능 한 token 생성
-                    long currentTimeStamp = System.currentTimeMillis();
-                    long expireMilliSecond = currentTimeStamp + (Integer.parseInt(TOKEN_EXPIRE_MINUTE)*60*1000);
-                    returnAuthKey = memoryTokenManager.makeAccessToken(req_userInfoBean.getUSERID(), req_userInfoBean.getDEVICEID(), expireMilliSecond, appLicenseBean.getSECRET_KEY());
                 }
 
                 // 최최 할당 브로커서버아이디는 계속 똑같이 유지시키기위해 아래와 같이 셋팅
@@ -372,6 +369,9 @@ public class UserController {
             }
             // 할당할 브로커서버 정보를 보내야 한다.
             BrokerConInfoBean brokerConInfoBean = RedisAllocateUserService.getInstance().getClientConnectUpnsInfo(req_userInfoBean.getBROKER_ID());
+            if(brokerConInfoBean==null){
+                throw new Exception("접속 할 브로커아이디가 ("+req_userInfoBean.getBROKER_ID()+") DB에 등록되지 않은 브로커아이디 입니다.");
+            }
             resultBodyMap.put("brokerip",brokerConInfoBean.getIP());
             resultBodyMap.put("port",brokerConInfoBean.getPORT());
             resultBodyMap.put("authkey",returnAuthKey);

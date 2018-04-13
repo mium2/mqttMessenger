@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="setting">
+    <insert id="inOrganization" parameterType="com.msp.messenger.bean.settging.OrganizationBean">
+        <![CDATA[
+        insert into T_MSNG_ORGANIZATION(ORGAN_IDX,ORGAN_P_IDX,ORGAN_NAME,ORGAN_NAME_EN,DEPTH,ORDERBY,REGDATE,MODDATE,DESCRIPTION)
+        values(#{ORGAN_IDX},#{ORGAN_P_IDX},#{ORGAN_NAME},#{ORGAN_NAME_EN},#{DEPTH},#{ORDERBY},SYSDATE,SYSDATE,#{DESCRIPTION})
+        ]]>
+    </insert>
+
+
+</mapper>

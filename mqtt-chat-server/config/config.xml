@@ -28,7 +28,7 @@
             <db>11</db>
         </slave>
         <sentinels>
-            <use>N</use>
+            <use>Y</use>
             <ips>211.241.199.215</ips>
             <ports>26379</ports>
         </sentinels>

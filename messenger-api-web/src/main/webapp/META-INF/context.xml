@@ -53,7 +53,7 @@
 	          auth="Container"
 	          type="javax.sql.DataSource" 
 	          driverClassName="oracle.jdbc.OracleDriver"
-	          url="jdbc:oracle:thin:@211.241.199.1:1521:orcl"
+	          url="jdbc:oracle:thin:@211.241.199.243:1521:orcl"
 	          username="messenger"
 	          password="messenger"
 	          maxActive="20"

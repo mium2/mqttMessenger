@@ -52,7 +52,8 @@ public class ChatRoomController {
         Map<String,String> resultHeadMap = new HashMap<String, String>();
         Map<String,Object> resultBodyMap = new HashMap<String, Object>();
 
-        if(makeRoomBean.getINVITE_USERIDS().equals("") || makeRoomBean.getROOMTYPE().equals("") || makeRoomBean.getROOMNAME().equals("")){
+        if(makeRoomBean.getINVITE_USERIDS().equals("") || makeRoomBean.getROOMTYPE().equals("") || makeRoomBean.getROOMNAME().equals("")
+            || makeRoomBean.getAPPID().equals("") || makeRoomBean.getDEVICEID().equals("")){
             resultHeadMap.put(Constants.RESULT_CODE_KEY,Constants.ERR_1000);
             resultHeadMap.put(Constants.RESULT_MESSAGE_KEY,Constants.ERR_1000_MSG);
             return responseJson(resultHeadMap,resultBodyMap, makeRoomBean.getAPPID());
